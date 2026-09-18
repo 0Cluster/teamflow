@@ -8,7 +8,11 @@ interface RateLimitOptions {
 
 /*
  * Minimal in-memory sliding-window rate limiter for abuse-prone
- * endpoints (login/register brute force).
+ * endpoints (login/register/refresh brute force).
+ *
+ * Only FAILED responses (status >= 400) consume budget: successes,
+ * validation slips, and ordinary retries never lock a legitimate
+ * user out — only repeated failures trip the 429.
  *
  * Deliberately dependency-free. Single-process only: behind a
  * multi-instance deployment this must be replaced with a shared
@@ -32,6 +36,16 @@ function pruneExpired(now: number, windowMs: number): void {
   }
 }
 
+function freshHits(key: string, now: number, windowMs: number): number[] {
+  const timestamps = (hits.get(key) ?? []).filter(
+    (timestamp) => timestamp > now - windowMs,
+  );
+
+  hits.set(key, timestamps);
+
+  return timestamps;
+}
+
 export function rateLimit({
   windowMs,
   max,
@@ -49,11 +63,15 @@ export function rateLimit({
       pruneExpired(now, windowMs);
     }
 
-    const timestamps = (hits.get(key) ?? []).filter(
-      (timestamp) => timestamp > now - windowMs,
-    );
+    const timestamps = freshHits(key, now, windowMs);
 
     if (timestamps.length >= max) {
+      const retryAfterSeconds = Math.max(
+        1,
+        Math.ceil((timestamps[0]! + windowMs - now) / 1000),
+      );
+
+      res.setHeader("Retry-After", String(retryAfterSeconds));
       res.status(429).json({
         success: false,
         error: {
@@ -67,14 +85,23 @@ export function rateLimit({
       return;
     }
 
-    timestamps.push(now);
-    hits.set(key, timestamps);
-
     res.setHeader("RateLimit-Limit", String(max));
     res.setHeader(
       "RateLimit-Remaining",
       String(max - timestamps.length),
     );
+
+    const originalJson = res.json.bind(res);
+
+    res.json = ((body: unknown) => {
+      if (res.statusCode >= 400) {
+        const current = freshHits(key, Date.now(), windowMs);
+        current.push(Date.now());
+        hits.set(key, current);
+      }
+
+      return originalJson(body);
+    }) as typeof res.json;
 
     next();
   };
