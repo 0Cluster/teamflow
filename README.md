@@ -162,6 +162,9 @@ the API keeps running on memory fallbacks.
   `VITE_API_URL`/`VITE_SOCKET_URL` bake in at build time — rebuild to change.
 - One-command hosting: `render.yaml` at the repo root provisions the API
   service + static site (set the `sync: false` values in the dashboard).
+  The API build uses `npm ci --include=dev` on purpose: Render builds with
+  `NODE_ENV=production`, which would otherwise skip the `@types/*` and
+  `typescript` devDependencies and fail with `TS7016`.
 - Optional: `REDIS_URL` (rate limits, cache, socket fan-out).
 - Verify: `GET /health` → healthy (+ redis state), `/api/docs` for the API.
 - Never commit `.env`; `.env.example` files are tracked as templates.
