@@ -1,5 +1,6 @@
 import { Task } from "./task.model.js";
 import type { SortOrder } from "mongoose";
+import { escapeRegExp } from "../../utils/regex.js";
 
 interface FindTasksOptions {
   status?: string | undefined;
@@ -11,6 +12,30 @@ interface FindTasksOptions {
   limit: number;
   sortBy: string;
   sortOrder: "asc" | "desc";
+}
+
+/*
+ * Builds a literal-text $or search clause. Exported for unit
+ * testing; both task finders share it so neither can drift
+ * back to raw user input in $regex.
+ */
+export function buildTaskSearchFilter(search: string) {
+  const escaped = escapeRegExp(search);
+
+  return [
+    {
+      title: {
+        $regex: escaped,
+        $options: "i",
+      },
+    },
+    {
+      description: {
+        $regex: escaped,
+        $options: "i",
+      },
+    },
+  ];
 }
 
 export async function createTask(data: {
@@ -55,20 +80,7 @@ export async function findTasksByProject(
   }
 
   if (options.search !== undefined && options.search.length > 0) {
-    filter.$or = [
-      {
-        title: {
-          $regex: options.search,
-          $options: "i",
-        },
-      },
-      {
-        description: {
-          $regex: options.search,
-          $options: "i",
-        },
-      },
-    ];
+    filter.$or = buildTaskSearchFilter(options.search);
   }
 
   const skip = (options.page - 1) * options.limit;
@@ -268,15 +280,16 @@ export async function findTasksAssignedToUser(
   }
 
   if (options.search !== undefined && options.search.length > 0) {
-    filter.$or = [
-      { title: { $regex: options.search, $options: "i" } },
-      { description: { $regex: options.search, $options: "i" } },
-    ];
+    filter.$or = buildTaskSearchFilter(options.search);
   }
 
   const skip = (options.page - 1) * options.limit;
+
   const sortDirection: SortOrder = options.sortOrder === "asc" ? 1 : -1;
-  const sort = { [options.sortBy]: sortDirection };
+
+  const sort = {
+    [options.sortBy]: sortDirection,
+  };
 
   const [tasks, total] = await Promise.all([
     Task.find(filter).sort(sort).skip(skip).limit(options.limit).exec(),

@@ -82,6 +82,20 @@ hand-written in `apps/api/src/docs/openapi.ts` and pinned by
 `src/docs/__tests__/openapi.test.ts`, which fails if a route is added or
 removed without updating the docs.
 
+## Security posture
+
+- JWT access (15m, Bearer) + rotating httpOnly refresh sessions with reuse
+  detection; bcrypt-12 password hashes (72-char cap matches the algorithm limit).
+- Helmet headers, strict single-origin CORS, 100kb JSON body cap.
+- Rate limits: login 20/15min, register 20/hour, refresh 120/hour, all other
+  API routes 500/15min per IP (in-memory; a shared store is required for
+  multi-instance deployments). `trust proxy` is set for correct client IPs.
+- Malformed ObjectIds return 400 (`INVALID_ID_FORMAT`), never 500s; unknown
+  errors stay generic. Task search input is regex-escaped (ReDoS-safe).
+- Org/project/task/comment/label/activity reads are membership-scoped;
+  notifications are user-scoped; deletes are OWNER-only; refresh cookies are
+  `Secure` in production and path-scoped to `/api/v1/auth`.
+
 ## Deployment notes
 
 - API: `npm run build --workspace api && npm start --workspace api` (needs `MONGODB_URI`, `JWT_*_SECRET`, `FRONTEND_URL`).

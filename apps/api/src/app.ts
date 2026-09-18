@@ -16,20 +16,30 @@ import { taskRouter } from "./modules/tasks/task.routes.js";
 import { projectRouter } from "./modules/projects/project.routes.js";
 import { membershipRouter } from "./modules/memberships/membership.routes.js";
 import { errorMiddleware } from "./common/middleware/error.middleware.js";
+import { rateLimit } from "./common/middleware/rate-limit.middleware.js";
 import { authRouter } from "./modules/auth/auth.routes.js";
 import { env } from "./config/env.js";
 
 const app = express();
+
+// Single-proxy deployments (Render/Railway/Fly) need this for
+// correct req.ip, which the rate limiters key on. Harmless locally.
+app.set("trust proxy", 1);
 
 app.use(helmet());
 app.use(
   cors({
     origin: env.FRONTEND_URL,
     credentials: true,
+    methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    maxAge: 600,
   }),
 );
 
-app.use(express.json());
+// Largest legit body is well under this (5k-char comments);
+// anything bigger is rejected before parsing.
+app.use(express.json({ limit: "100kb" }));
 app.use(cookieParser());
 
 app.get("/api/docs.json", (_req, res) => {
@@ -45,6 +55,14 @@ app.use(
 );
 
 app.use("/api/v1/auth", authRouter);
+
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 500,
+  message: "Too many requests, please slow down",
+});
+
+app.use("/api/v1", apiLimiter);
 app.use("/api/v1", notificationRouter);
 app.use("/api/v1", taskLabelRouter);
 app.use("/api/v1", labelRouter);

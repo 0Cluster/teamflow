@@ -24,7 +24,13 @@ const registerLimiter = rateLimit({
   message: "Too many accounts created, please try again later",
 });
 
-router.post("/refresh", refresh);
+const refreshLimiter = rateLimit({
+  windowMs: ONE_HOUR,
+  max: 120,
+  message: "Too many refresh attempts, please try again later",
+});
+
+router.post("/refresh", refreshLimiter, refresh);
 router.post("/register", registerLimiter, register);
 router.post("/login", loginLimiter, login);
 router.post("/logout", logout);
