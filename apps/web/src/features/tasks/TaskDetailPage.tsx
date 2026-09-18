@@ -11,10 +11,13 @@ import { deleteTask, getTask, updateTask } from "./task.api.js";
 import { useLiveTasks } from "../../hooks/use-live-tasks.js";
 
 import type {
+  Task,
   TaskPriority,
   TaskStatus,
   UpdateTaskInput,
 } from "./task.types.js";
+import type { Label } from "../labels/label.types.js";
+import type { OrganizationMember } from "../organizations/membership.types.js";
 
 const statuses: {
   value: TaskStatus;
@@ -257,6 +260,103 @@ function formatDateTime(value: string): string {
   return date.toLocaleString();
 }
 
+interface TaskDetailsStripProps {
+  statusLabel: string | undefined;
+  task: Task;
+  assignee: OrganizationMember | undefined;
+  taskLabels: Label[];
+}
+
+function renderTaskDetailsStrip({
+  statusLabel,
+  task,
+  assignee,
+  taskLabels,
+}: TaskDetailsStripProps) {
+  return (
+    <div className="mb-5 rounded-xl border border-slate-800 bg-slate-900 px-6 py-4">
+      <div className="flex flex-wrap items-center gap-x-8 gap-y-4">
+        <div className="flex gap-2">
+          <span
+            className={[
+              "rounded-full px-3 py-1 text-xs font-semibold",
+              statusPillClasses(task.status),
+            ].join(" ")}
+          >
+            {statusLabel ?? task.status}
+          </span>
+
+          <span
+            className={[
+              "rounded-full px-3 py-1 text-xs font-semibold",
+              priorityPillClasses(task.priority),
+            ].join(" ")}
+          >
+            {task.priority}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-500/15 text-xs font-bold text-indigo-400">
+            {assignee ? assignee.name.charAt(0).toUpperCase() : "?"}
+          </span>
+
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium text-white">
+              {assignee ? assignee.name : "Unassigned"}
+            </p>
+
+            {assignee && (
+              <p className="truncate text-xs text-slate-500">
+                {assignee.email}
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div>
+          <p className="text-xs text-slate-500">Due</p>
+
+          <p
+            className={[
+              "mt-0.5 text-sm font-medium",
+              isOverdue(task.dueDate, task.status)
+                ? "text-red-400"
+                : "text-white",
+            ].join(" ")}
+          >
+            {formatDueDate(task.dueDate)}
+          </p>
+        </div>
+
+        {taskLabels.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {taskLabels.map((label) => (
+              <span
+                key={label.id}
+                className="rounded-full px-2.5 py-1 text-[11px] font-semibold text-white"
+                style={{
+                  backgroundColor: label.color,
+                }}
+              >
+                {label.name}
+              </span>
+            ))}
+          </div>
+        )}
+
+        <div className="text-xs text-slate-600 sm:ml-auto">
+          <p>Created {formatDateTime(task.createdAt)}</p>
+
+          <p className="mt-0.5">
+            Updated {formatDateTime(task.updatedAt)}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function toggleLabel(labelId: string) {
     setSelectedLabelIds((current) =>
       current.includes(labelId)
@@ -385,6 +485,15 @@ function toggleLabel(labelId: string) {
           </p>
         )}
       </div>
+
+      {!isEditing &&
+        renderTaskDetailsStrip({
+          statusLabel:
+            statuses.find((item) => item.value === task.status)?.label,
+          task,
+          assignee,
+          taskLabels,
+        })}
 
       {isEditing ? (
         <div className="rounded-xl border border-slate-800 bg-slate-900 p-5">
@@ -568,113 +677,11 @@ function toggleLabel(labelId: string) {
               </p>
             </div>
 
-            <div className="grid items-start gap-5 md:grid-cols-5">
-            <div className="md:col-span-3">
             <CommentsSection
               organizationId={organizationId}
               projectId={projectId}
               taskId={taskId}
             />
-            </div>
-
-            <div className="rounded-xl border border-slate-800 bg-slate-900 p-6 md:col-span-2">
-              <h2 className="text-lg font-semibold text-white">Details</h2>
-
-              {/* Status + priority pills */}
-              <div className="mt-4 flex flex-wrap gap-2">
-                <span
-                  className={[
-                    "rounded-full px-3 py-1 text-xs font-semibold",
-                    statusPillClasses(task.status),
-                  ].join(" ")}
-                >
-                  {statuses.find((item) => item.value === task.status)?.label}
-                </span>
-
-                <span
-                  className={[
-                    "rounded-full px-3 py-1 text-xs font-semibold",
-                    priorityPillClasses(task.priority),
-                  ].join(" ")}
-                >
-                  {task.priority}
-                </span>
-              </div>
-
-              <div className="mt-4 space-y-4 border-t border-slate-800 pt-4">
-                {/* Assignee */}
-                <div className="flex items-center gap-3">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-500/15 text-sm font-bold text-indigo-400">
-                    {assignee
-                      ? assignee.name.charAt(0).toUpperCase()
-                      : "?"}
-                  </span>
-
-                  <div className="min-w-0">
-                    <p className="text-xs text-slate-500">Assignee</p>
-
-                    <p className="truncate text-sm font-medium text-white">
-                      {assignee ? assignee.name : "Unassigned"}
-                    </p>
-
-                    {assignee && (
-                      <p className="truncate text-xs text-slate-500">
-                        {assignee.email}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Due date */}
-                <div>
-                  <p className="text-xs text-slate-500">Due date</p>
-
-                  <p
-                    className={[
-                      "mt-1 text-sm font-medium",
-                      isOverdue(task.dueDate, task.status)
-                        ? "text-red-400"
-                        : "text-white",
-                    ].join(" ")}
-                  >
-                    {formatDueDate(task.dueDate)}
-                  </p>
-                </div>
-
-                {/* Labels */}
-                <div>
-                  <p className="text-xs text-slate-500">Labels</p>
-
-                  {taskLabels.length > 0 ? (
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      {taskLabels.map((label) => (
-                        <span
-                          key={label.id}
-                          className="rounded-full px-2.5 py-1 text-[11px] font-semibold text-white"
-                          style={{
-                            backgroundColor: label.color,
-                          }}
-                        >
-                          {label.name}
-                        </span>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="mt-1 text-sm text-slate-600">No labels</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Timestamps footer */}
-              <div className="mt-4 border-t border-slate-800 pt-3 text-xs text-slate-600">
-                <p>Created {formatDateTime(task.createdAt)}</p>
-
-                <p className="mt-1">
-                  Updated {formatDateTime(task.updatedAt)}
-                </p>
-              </div>
-            </div>
-            </div>
           </div>
 
           {/* Right rail: activity */}
