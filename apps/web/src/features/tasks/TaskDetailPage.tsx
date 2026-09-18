@@ -475,12 +475,101 @@ export function TaskDetailPage() {
         <div className="grid items-start gap-5 lg:grid-cols-3">
           {/* Main column */}
           <div className="space-y-5 lg:col-span-2">
+            <div className="grid items-start gap-5 md:grid-cols-2">
             <div className="rounded-xl border border-slate-800 bg-slate-900 p-6">
               <h2 className="text-lg font-semibold text-white">Description</h2>
 
               <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-400">
                 {task.description || "No description provided."}
               </p>
+            </div>
+
+            <div className="rounded-xl border border-slate-800 bg-slate-900 p-6">
+              <h2 className="text-lg font-semibold text-white">Details</h2>
+
+              <div className="mt-4 space-y-4">
+                {/* Status */}
+                <div>
+                  <p className="text-xs text-slate-500">Status</p>
+
+                  <p className="mt-1 text-sm font-medium text-white">
+                    {statuses.find((item) => item.value === task.status)?.label}
+                  </p>
+                </div>
+
+                {/* Priority */}
+                <div>
+                  <p className="text-xs text-slate-500">Priority</p>
+
+                  <p className="mt-1 text-sm font-medium text-white">
+                    {task.priority}
+                  </p>
+                </div>
+
+                {/* Assignee */}
+                <div>
+                  <p className="text-xs text-slate-500">Assignee</p>
+
+                  <p className="mt-1 text-sm font-medium text-white">
+                    {assignee
+                      ? `${assignee.name} (${assignee.email})`
+                      : "Unassigned"}
+                  </p>
+                </div>
+
+                {/* Due date */}
+                <div>
+                  <p className="text-xs text-slate-500">Due date</p>
+
+                  <p className="mt-1 text-sm font-medium text-white">
+                    {task.dueDate
+                      ? new Date(task.dueDate).toLocaleDateString()
+                      : "No due date"}
+                  </p>
+                </div>
+
+                {/* Labels */}
+                <div>
+                  <p className="text-xs text-slate-500">Labels</p>
+
+                  {taskLabels.length > 0 ? (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {taskLabels.map((label) => (
+                        <span
+                          key={label.id}
+                          className="rounded-full px-2.5 py-1 text-[11px] font-semibold text-white"
+                          style={{
+                            backgroundColor: label.color,
+                          }}
+                        >
+                          {label.name}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="mt-1 text-sm text-slate-600">No labels</p>
+                  )}
+                </div>
+
+                {/* Created */}
+                <div>
+                  <p className="text-xs text-slate-500">Created</p>
+
+                  <p className="mt-1 text-sm text-slate-400">
+                    {new Date(task.createdAt).toLocaleString()}
+                  </p>
+                </div>
+
+                {/* Updated */}
+                <div>
+                  <p className="text-xs text-slate-500">Last updated</p>
+
+                  <p className="mt-1 text-sm text-slate-400">
+                    {new Date(task.updatedAt).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+            </div>
             </div>
 
             <CommentsSection
@@ -490,95 +579,8 @@ export function TaskDetailPage() {
             />
           </div>
 
-          {/* Sidebar: details + activity share one column width */}
-          <div className="space-y-5 lg:sticky lg:top-6">
-          <div className="rounded-xl border border-slate-800 bg-slate-900 p-6">
-            <h2 className="text-lg font-semibold text-white">Details</h2>
-
-            <div className="mt-4 space-y-4">
-              {/* Status */}
-              <div>
-                <p className="text-xs text-slate-500">Status</p>
-
-                <p className="mt-1 text-sm font-medium text-white">
-                  {statuses.find((item) => item.value === task.status)?.label}
-                </p>
-              </div>
-
-              {/* Priority */}
-              <div>
-                <p className="text-xs text-slate-500">Priority</p>
-
-                <p className="mt-1 text-sm font-medium text-white">
-                  {task.priority}
-                </p>
-              </div>
-
-              {/* Assignee */}
-              <div>
-                <p className="text-xs text-slate-500">Assignee</p>
-
-                <p className="mt-1 text-sm font-medium text-white">
-                  {assignee
-                    ? `${assignee.name} (${assignee.email})`
-                    : "Unassigned"}
-                </p>
-              </div>
-
-              {/* Due date */}
-              <div>
-                <p className="text-xs text-slate-500">Due date</p>
-
-                <p className="mt-1 text-sm font-medium text-white">
-                  {task.dueDate
-                    ? new Date(task.dueDate).toLocaleDateString()
-                    : "No due date"}
-                </p>
-              </div>
-
-              {/* Labels */}
-              <div>
-                <p className="text-xs text-slate-500">Labels</p>
-
-                {taskLabels.length > 0 ? (
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    {taskLabels.map((label) => (
-                      <span
-                        key={label.id}
-                        className="rounded-full px-2.5 py-1 text-[11px] font-semibold text-white"
-                        style={{
-                          backgroundColor: label.color,
-                        }}
-                      >
-                        {label.name}
-                      </span>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="mt-1 text-sm text-slate-600">No labels</p>
-                )}
-              </div>
-
-              {/* Created */}
-              <div>
-                <p className="text-xs text-slate-500">Created</p>
-
-                <p className="mt-1 text-sm text-slate-400">
-                  {new Date(task.createdAt).toLocaleString()}
-                </p>
-              </div>
-
-              {/* Updated */}
-              <div>
-                <p className="text-xs text-slate-500">Last updated</p>
-
-                <p className="mt-1 text-sm text-slate-400">
-                  {new Date(task.updatedAt).toLocaleString()}
-                </p>
-              </div>
-            </div>
-          </div>
-
+          {/* Right rail: activity */}
+          <div>
           <ActivityFeed
             organizationId={organizationId}
             projectId={projectId}
