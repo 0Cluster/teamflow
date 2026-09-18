@@ -4,12 +4,14 @@ import {
   findMembership,
   createMembership,
   deleteMembershipsByOrganization,
+  findUserIdsByOrganization,
 } from "../memberships/membership.repository.js";
 import { deleteActivitiesByOrganization } from "../activity/activity.repository.js";
 import { deleteCommentsByOrganization } from "../comments/comment.repository.js";
 import { deleteLabelsByOrganization } from "../labels/label.repository.js";
 import { deleteTasksByOrganization } from "../tasks/task.repository.js";
 import { deleteProjectsByOrganization } from "../projects/project.repository.js";
+import { invalidateMyProjects } from "../projects/project.service.js";
 import {
   createOrganization,
   deleteOrganization,
@@ -153,6 +155,10 @@ export async function deleteOrganizationForUser(
     );
   }
 
+  const formerMemberIds = await findUserIdsByOrganization(
+    organizationId,
+  );
+
   await Promise.all([
     deleteCommentsByOrganization(organizationId),
     deleteActivitiesByOrganization(organizationId),
@@ -163,4 +169,6 @@ export async function deleteOrganizationForUser(
   ]);
 
   await deleteOrganization(organizationId);
+
+  await invalidateMyProjects(formerMemberIds);
 }

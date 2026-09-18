@@ -96,6 +96,21 @@ removed without updating the docs.
   notifications are user-scoped; deletes are OWNER-only; refresh cookies are
   `Secure` in production and path-scoped to `/api/v1/auth`.
 
+## Redis (optional)
+
+`REDIS_URL` enables three things; everything degrades gracefully without it:
+
+- **Rate limiting** — fixed-window Redis counters shared across instances
+  (memory sliding-window fallback otherwise).
+- **Caching** — `GET /projects` cached per user (60s TTL) with explicit
+  invalidation on every project/membership/organization write.
+- **Socket.IO scaling** — the Redis adapter attaches automatically so rooms
+  and events fan out across instances; single-process pub/sub otherwise.
+
+MongoDB stays the source of truth; run
+`REDIS_URL=redis://localhost:6379 npx vitest run redis.integration`
+for the live integration suite.
+
 ## Deployment notes
 
 - API: `npm run build --workspace api && npm start --workspace api` (needs `MONGODB_URI`, `JWT_*_SECRET`, `FRONTEND_URL`).

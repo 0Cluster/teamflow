@@ -11,6 +11,7 @@ import { deleteProjectForOrganization } from "../project.service.js";
 
 vi.mock("../../memberships/membership.repository.js", () => ({
   findMembershipsByUser: vi.fn(),
+  findUserIdsByOrganization: vi.fn().mockResolvedValue([]),
 }));
 
 vi.mock("../../activity/activity.repository.js", () => ({

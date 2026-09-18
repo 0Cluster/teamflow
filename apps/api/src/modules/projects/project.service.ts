@@ -1,5 +1,9 @@
 import { AppError } from "../../common/errors/app-error.js";
-import { findMembershipsByUser } from "../memberships/membership.repository.js";
+import {
+  findMembershipsByUser,
+  findUserIdsByOrganization,
+} from "../memberships/membership.repository.js";
+import { cacheDel, cacheGet, cacheSet } from "../../common/cache/cache.js";
 import { deleteActivitiesByProject } from "../activity/activity.repository.js";
 import { logActivity } from "../activity/activity.service.js";
 import {
@@ -21,6 +25,50 @@ import type {
   CreateProjectInput,
   UpdateProjectInput,
 } from "./project.schema.js";
+
+export const MY_PROJECTS_CACHE_TTL_SECONDS = 60;
+
+export function myProjectsCacheKey(userId: string): string {
+  return `my-projects:${userId}`;
+}
+
+interface ProjectDocumentLike {
+  id: string;
+  organizationId: { toString(): string };
+  name: string;
+  key: string;
+  description?: string;
+  createdBy: { toString(): string };
+  createdAt: unknown;
+  updatedAt: unknown;
+}
+
+export function toProjectList(projects: ProjectDocumentLike[]) {
+  return projects.map((project) => ({
+    id: project.id,
+    organizationId: project.organizationId.toString(),
+    name: project.name,
+    key: project.key,
+    description: project.description,
+    createdBy: project.createdBy.toString(),
+    createdAt: project.createdAt,
+    updatedAt: project.updatedAt,
+  }));
+}
+
+export async function invalidateMyProjects(
+  userIds: string[],
+): Promise<void> {
+  await cacheDel(userIds.map(myProjectsCacheKey));
+}
+
+export async function invalidateMyProjectsForOrganization(
+  organizationId: string,
+): Promise<void> {
+  await invalidateMyProjects(
+    await findUserIdsByOrganization(organizationId),
+  );
+}
 
 export async function createProjectForOrganization(
   organizationId: string,
@@ -62,6 +110,8 @@ export async function createProjectForOrganization(
 
     emitProjectCreated(organizationId, createdProject);
 
+    await invalidateMyProjectsForOrganization(organizationId);
+
     return createdProject;
   } catch (error: unknown) {
     if (
@@ -84,19 +134,19 @@ export async function createProjectForOrganization(
 export async function listProjectsForOrganization(organizationId: string) {
   const projects = await findProjectsByOrganization(organizationId);
 
-  return projects.map((project) => ({
-    id: project.id,
-    organizationId: project.organizationId.toString(),
-    name: project.name,
-    key: project.key,
-    description: project.description,
-    createdBy: project.createdBy.toString(),
-    createdAt: project.createdAt,
-    updatedAt: project.updatedAt,
-  }));
+  return toProjectList(projects);
 }
 
 export async function listProjectsForUser(userId: string) {
+  const cacheKey = myProjectsCacheKey(userId);
+  const cached = await cacheGet<ReturnType<typeof toProjectList>>(
+    cacheKey,
+  );
+
+  if (cached !== null) {
+    return cached;
+  }
+
   const memberships = await findMembershipsByUser(userId);
 
   const organizationIds = [
@@ -124,16 +174,11 @@ export async function listProjectsForUser(userId: string) {
       ? []
       : await findProjectsByOrganizationIds(organizationIds);
 
-  return projects.map((project) => ({
-    id: project.id,
-    organizationId: project.organizationId.toString(),
-    name: project.name,
-    key: project.key,
-    description: project.description,
-    createdBy: project.createdBy.toString(),
-    createdAt: project.createdAt,
-    updatedAt: project.updatedAt,
-  }));
+  const result = toProjectList(projects);
+
+  await cacheSet(cacheKey, result, MY_PROJECTS_CACHE_TTL_SECONDS);
+
+  return result;
 }
 
 export async function getProjectForOrganization(
@@ -192,6 +237,8 @@ export async function updateProjectForOrganization(
 
   emitProjectUpdated(organizationId, updatedProject);
 
+  await invalidateMyProjectsForOrganization(organizationId);
+
   return updatedProject;
 }
 
@@ -218,6 +265,8 @@ export async function deleteProjectForOrganization(
   await deleteProject(organizationId, projectId);
 
   emitProjectDeleted(organizationId, projectId);
+
+  await invalidateMyProjectsForOrganization(organizationId);
 
   await logActivity({
     organizationId,

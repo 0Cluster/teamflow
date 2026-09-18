@@ -57,6 +57,7 @@ app.use(
 app.use("/api/v1/auth", authRouter);
 
 const apiLimiter = rateLimit({
+  name: "api",
   windowMs: 15 * 60 * 1000,
   max: 500,
   message: "Too many requests, please slow down",

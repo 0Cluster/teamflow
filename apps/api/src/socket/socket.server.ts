@@ -1,5 +1,7 @@
 import type { Server as HttpServer } from "node:http";
 import { Server } from "socket.io";
+import { createAdapter } from "@socket.io/redis-adapter";
+import { Redis } from "ioredis";
 
 import { env } from "../config/env.js";
 import { setSocketServer } from "./socket.events.js";
@@ -18,6 +20,47 @@ import type {
   ServerToClientEvents,
 } from "./socket.types.js";
 
+async function attachScalingAdapter(
+  io: Server<ClientToServerEvents, ServerToClientEvents>,
+): Promise<void> {
+  if (!env.REDIS_URL) {
+    return;
+  }
+
+  let pubClient: Redis | null = null;
+  let subClient: Redis | null = null;
+
+  try {
+    pubClient = new Redis(env.REDIS_URL, {
+      lazyConnect: true,
+      maxRetriesPerRequest: 2,
+      enableOfflineQueue: false,
+      connectTimeout: 5000,
+    });
+    subClient = pubClient.duplicate();
+
+    await Promise.all([pubClient.connect(), subClient.connect()]);
+
+    io.adapter(createAdapter(pubClient, subClient));
+  } catch {
+    console.warn(
+      "[socket] Redis adapter unavailable, staying single-instance",
+    );
+
+    try {
+      pubClient?.disconnect();
+    } catch {
+      // Ignore cleanup failures.
+    }
+
+    try {
+      subClient?.disconnect();
+    } catch {
+      // Ignore cleanup failures.
+    }
+  }
+}
+
 export function initializeSocketServer(
   httpServer: HttpServer,
 ): Server<ClientToServerEvents, ServerToClientEvents> {
@@ -33,6 +76,12 @@ export function initializeSocketServer(
 setSocketServer(io);
 
   io.use(authenticateSocket);
+
+  // Best-effort horizontal scaling: rooms/events fan out across
+  // instances when Redis is configured, single-process otherwise.
+  void attachScalingAdapter(io).catch(() => {
+    // attachScalingAdapter already warns; never crash boot.
+  });
 
 io.on("connection", (socket) => {
   const authenticatedSocket = socket as AuthenticatedSocket;

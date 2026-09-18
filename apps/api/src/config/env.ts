@@ -29,6 +29,11 @@ const envSchema = z.object({
     .string()
     .regex(/^\d+(s|m|h|d|w|y)$/, "Invalid JWT refresh expiration format")
     .default("7d"),
+
+  REDIS_URL: z
+    .string()
+    .min(1, "REDIS_URL must be a valid Redis connection string")
+    .optional(),
 });
 
 const result = envSchema.safeParse(process.env);

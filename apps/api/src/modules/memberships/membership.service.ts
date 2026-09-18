@@ -11,6 +11,7 @@ import {
   emitMemberUpdated,
 } from "../../socket/socket.events.js";
 import { logActivity } from "../activity/activity.service.js";
+import { invalidateMyProjects } from "../projects/project.service.js";
 import {
   createMembership,
   deleteMembership,
@@ -82,6 +83,8 @@ export async function addMemberToOrganization(
   });
 
   emitMemberAdded(organizationId, member);
+
+  await invalidateMyProjects([user.id]);
 
   return member;
 }
@@ -204,6 +207,8 @@ export async function changeMemberRole(
 
     emitMemberUpdated(organizationId, member);
 
+    await invalidateMyProjects([targetUserId]);
+
     return member;
   }
 
@@ -239,6 +244,8 @@ export async function changeMemberRole(
   });
 
   emitMemberUpdated(organizationId, member);
+
+  await invalidateMyProjects([targetUserId]);
 
   return member;
 }
@@ -313,6 +320,8 @@ export async function removeMemberFromOrganization(
   emitMemberRemoved(organizationId, {
     userId: targetUserId,
   });
+
+  await invalidateMyProjects([targetUserId]);
 }
 
 export async function leaveOrganizationForUser(
@@ -361,4 +370,6 @@ export async function leaveOrganizationForUser(
   emitMemberRemoved(organizationId, {
     userId,
   });
+
+  await invalidateMyProjects([userId]);
 }

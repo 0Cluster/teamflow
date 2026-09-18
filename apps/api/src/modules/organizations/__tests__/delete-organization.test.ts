@@ -20,6 +20,7 @@ vi.mock("../../memberships/membership.repository.js", () => ({
   findMembershipsByUser: vi.fn(),
   createMembership: vi.fn(),
   deleteMembershipsByOrganization: vi.fn(),
+  findUserIdsByOrganization: vi.fn().mockResolvedValue([]),
 }));
 
 vi.mock("../../activity/activity.repository.js", () => ({

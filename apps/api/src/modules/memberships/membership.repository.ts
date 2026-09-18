@@ -27,6 +27,19 @@ export async function findMembershipsByOrganization(
     .exec();
 }
 
+export async function findUserIdsByOrganization(
+  organizationId: string,
+): Promise<string[]> {
+  const memberships = await Membership.find({ organizationId })
+    .select("userId")
+    .lean()
+    .exec();
+
+  return memberships.map((membership) =>
+    membership.userId.toString(),
+  );
+}
+
 export async function findMembershipsByUser(
   userId: string,
 ) {

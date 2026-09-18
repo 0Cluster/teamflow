@@ -1,77 +1,46 @@
 import type { NextFunction, Request, Response } from "express";
 
+import {
+  getRateLimitStore,
+  type RateLimitStore,
+} from "../rate-limit/rate-limit.store.js";
+
 interface RateLimitOptions {
+  name: string;
   windowMs: number;
   max: number;
   message?: string;
+  store?: RateLimitStore;
 }
 
 /*
- * Minimal in-memory sliding-window rate limiter for abuse-prone
- * endpoints (login/register/refresh brute force).
- *
- * Only FAILED responses (status >= 400) consume budget: successes,
- * validation slips, and ordinary retries never lock a legitimate
- * user out — only repeated failures trip the 429.
- *
- * Deliberately dependency-free. Single-process only: behind a
- * multi-instance deployment this must be replaced with a shared
- * store (e.g. Redis) — see the note on `hits`.
+ * Failure-counting rate limiter (see rate-limit.store.ts).
+ * Buckets are namespaced per limiter: sharing one bucket across
+ * login and register would let failures on one lock out the other.
  */
-const hits = new Map<string, number[]>();
-
-const MAX_TRACKED_KEYS = 5000;
-
-function pruneExpired(now: number, windowMs: number): void {
-  for (const [key, timestamps] of hits) {
-    const fresh = timestamps.filter(
-      (timestamp) => timestamp > now - windowMs,
-    );
-
-    if (fresh.length === 0) {
-      hits.delete(key);
-    } else {
-      hits.set(key, fresh);
-    }
-  }
-}
-
-function freshHits(key: string, now: number, windowMs: number): number[] {
-  const timestamps = (hits.get(key) ?? []).filter(
-    (timestamp) => timestamp > now - windowMs,
-  );
-
-  hits.set(key, timestamps);
-
-  return timestamps;
-}
-
 export function rateLimit({
+  name,
   windowMs,
   max,
   message,
+  store = getRateLimitStore(),
 }: RateLimitOptions) {
-  return (
+  return async (
     req: Request,
     res: Response,
     next: NextFunction,
-  ): void => {
-    const key = req.ip ?? "unknown";
-    const now = Date.now();
+  ): Promise<void> => {
+    const key = `${name}:${req.ip ?? "unknown"}`;
+    const { failures, resetAfterMs } = await store.countFailures(
+      key,
+      windowMs,
+    );
 
-    if (hits.size > MAX_TRACKED_KEYS) {
-      pruneExpired(now, windowMs);
-    }
-
-    const timestamps = freshHits(key, now, windowMs);
-
-    if (timestamps.length >= max) {
-      const retryAfterSeconds = Math.max(
-        1,
-        Math.ceil((timestamps[0]! + windowMs - now) / 1000),
+    if (failures >= max) {
+      res.setHeader(
+        "Retry-After",
+        String(Math.max(1, Math.ceil(resetAfterMs / 1000))),
       );
-
-      res.setHeader("Retry-After", String(retryAfterSeconds));
       res.status(429).json({
         success: false,
         error: {
@@ -88,16 +57,16 @@ export function rateLimit({
     res.setHeader("RateLimit-Limit", String(max));
     res.setHeader(
       "RateLimit-Remaining",
-      String(max - timestamps.length),
+      String(Math.max(0, max - failures)),
     );
 
     const originalJson = res.json.bind(res);
 
     res.json = ((body: unknown) => {
       if (res.statusCode >= 400) {
-        const current = freshHits(key, Date.now(), windowMs);
-        current.push(Date.now());
-        hits.set(key, current);
+        void store.recordFailure(key, windowMs).catch(() => {
+          // Counting must never break responses.
+        });
       }
 
       return originalJson(body);
@@ -108,5 +77,5 @@ export function rateLimit({
 }
 
 export function resetRateLimits(): void {
-  hits.clear();
+  getRateLimitStore().reset();
 }

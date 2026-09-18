@@ -2,11 +2,13 @@ import http from "node:http";
 
 import { env } from "./config/env.js";
 import { connectDatabase } from "./database/mongodb.js";
+import { connectRedis } from "./database/redis.js";
 import { app } from "./app.js";
 import { initializeSocketServer } from "./socket/socket.server.js";
 
 async function startServer(): Promise<void> {
   await connectDatabase();
+  await connectRedis();
 
   const httpServer = http.createServer(app);
 
