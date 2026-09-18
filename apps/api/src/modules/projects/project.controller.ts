@@ -193,12 +193,21 @@ export async function deleteProject(
   req: Request,
   res: Response,
 ): Promise<void> {
+  if (!req.user) {
+    throw new AppError(
+      401,
+      "UNAUTHORIZED",
+      "Authentication required",
+    );
+  }
+
   const organizationId = getOrganizationId(req);
   const projectId = getProjectId(req);
 
   await deleteProjectForOrganization(
     organizationId,
     projectId,
+    req.user.id,
   );
 
   res.status(200).json({

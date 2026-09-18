@@ -15,6 +15,7 @@ import {
   emitMemberAdded,
   emitMemberUpdated,
 } from "../../../socket/socket.events.js";
+import { logActivity } from "../../activity/activity.service.js";
 import {
   addMemberToOrganization,
   changeMemberRole,
@@ -44,6 +45,10 @@ vi.mock("../../notifications/notification.service.js", () => ({
   notifyMemberAdded: vi.fn(),
   notifyMemberRoleChanged: vi.fn(),
   notifyOwnershipTransferred: vi.fn(),
+}));
+
+vi.mock("../../activity/activity.service.js", () => ({
+  logActivity: vi.fn(),
 }));
 
 vi.mock("../../../socket/socket.events.js", () => ({
@@ -88,6 +93,9 @@ describe("membership notifications", () => {
       "org1",
       expect.objectContaining({ userId: "newbie" }),
     );
+    expect(logActivity).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "MEMBER_ADDED" }),
+    );
   });
 
   it("notifies on role change and emits member:updated", async () => {
@@ -115,6 +123,9 @@ describe("membership notifications", () => {
     );
     expect(notifyOwnershipTransferred).not.toHaveBeenCalled();
     expect(emitMemberUpdated).toHaveBeenCalled();
+    expect(logActivity).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "MEMBER_ROLE_CHANGED" }),
+    );
   });
 
   it("notifies ownership transfer instead of a plain role change", async () => {
@@ -138,5 +149,8 @@ describe("membership notifications", () => {
       expect.objectContaining({ userId: "target1" }),
     );
     expect(notifyMemberRoleChanged).not.toHaveBeenCalled();
+    expect(logActivity).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "OWNERSHIP_TRANSFERRED" }),
+    );
   });
 });

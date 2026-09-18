@@ -1,6 +1,7 @@
 import { AppError } from "../../common/errors/app-error.js";
 import { findMembershipsByUser } from "../memberships/membership.repository.js";
 import { deleteActivitiesByProject } from "../activity/activity.repository.js";
+import { logActivity } from "../activity/activity.service.js";
 import { deleteCommentsByProject } from "../comments/comment.repository.js";
 import { deleteTasksByProject } from "../tasks/task.repository.js";
 import {
@@ -30,6 +31,17 @@ export async function createProjectForOrganization(
         ? { description: input.description }
         : {}),
       createdBy: userId,
+    });
+
+    await logActivity({
+      organizationId,
+      projectId: project.id,
+      actorId: userId,
+      type: "PROJECT_CREATED",
+      metadata: {
+        name: project.name,
+        key: project.key,
+      },
     });
 
     return {
@@ -173,6 +185,7 @@ export async function updateProjectForOrganization(
 export async function deleteProjectForOrganization(
   organizationId: string,
   projectId: string,
+  userId: string,
 ): Promise<void> {
   const project = await findProjectByOrganizationAndId(
     organizationId,
@@ -190,4 +203,15 @@ export async function deleteProjectForOrganization(
   ]);
 
   await deleteProject(organizationId, projectId);
+
+  await logActivity({
+    organizationId,
+    actorId: userId,
+    type: "PROJECT_DELETED",
+    metadata: {
+      projectId,
+      name: project.name,
+      key: project.key,
+    },
+  });
 }

@@ -10,6 +10,7 @@ import {
   emitMemberRemoved,
   emitMemberUpdated,
 } from "../../socket/socket.events.js";
+import { logActivity } from "../activity/activity.service.js";
 import {
   createMembership,
   deleteMembership,
@@ -67,6 +68,16 @@ export async function addMemberToOrganization(
     organizationId,
     orgName: organization?.name ?? "your organization",
     actorId,
+  });
+
+  await logActivity({
+    organizationId,
+    actorId,
+    type: "MEMBER_ADDED",
+    metadata: {
+      userId: user.id,
+      role: membership.role,
+    },
   });
 
   emitMemberAdded(organizationId, member);
@@ -180,6 +191,15 @@ export async function changeMemberRole(
       actorId: actorUserId,
     });
 
+    await logActivity({
+      organizationId,
+      actorId: actorUserId,
+      type: "OWNERSHIP_TRANSFERRED",
+      metadata: {
+        userId: targetUserId,
+      },
+    });
+
     emitMemberUpdated(organizationId, member);
 
     return member;
@@ -202,6 +222,16 @@ export async function changeMemberRole(
     orgName: organization?.name ?? "your organization",
     actorId: actorUserId,
     role: newRole,
+  });
+
+  await logActivity({
+    organizationId,
+    actorId: actorUserId,
+    type: "MEMBER_ROLE_CHANGED",
+    metadata: {
+      userId: targetUserId,
+      role: newRole,
+    },
   });
 
   emitMemberUpdated(organizationId, member);
@@ -261,6 +291,15 @@ export async function removeMemberFromOrganization(
   }
 
   await deleteMembership(organizationId, targetUserId);
+
+  await logActivity({
+    organizationId,
+    actorId: actorUserId,
+    type: "MEMBER_REMOVED",
+    metadata: {
+      userId: targetUserId,
+    },
+  });
 
   emitMemberRemoved(organizationId, {
     userId: targetUserId,

@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { deleteOrganization, getOrganization } from "./organization.api.js";
+import { OrganizationActivityFeed } from "../activity/OrganizationActivityFeed.js";
 import { useAuth } from "../auth/use-auth.js";
 import {
   addMember,
@@ -35,6 +36,7 @@ export function OrganizationDetailPage() {
     useState<MembershipRole>("MEMBER");
   const [error, setError] = useState("");
   const [deleteError, setDeleteError] = useState("");
+  const [transferError, setTransferError] = useState("");
 
   const organizationQuery = useQuery({
     queryKey: ["organizations", organizationId],
@@ -189,6 +191,36 @@ export function OrganizationDetailPage() {
     removeMemberMutation.mutate(member.userId);
   }
 
+  function handleTransferOwnership(member: OrganizationMember) {
+    if (member.role === "OWNER") {
+      return;
+    }
+
+    if (
+      !window.confirm(
+        `Transfer ownership to ${member.name}? You will become an admin. This cannot be undone except by the new owner.`,
+      )
+    ) {
+      return;
+    }
+
+    setTransferError("");
+
+    updateRoleMutation.mutate(
+      {
+        userId: member.userId,
+        role: "OWNER",
+      },
+      {
+        onError: () => {
+          setTransferError(
+            "Failed to transfer ownership. Only the owner can transfer it.",
+          );
+        },
+      },
+    );
+  }
+
   if (!organizationId) {
     return (
       <div className="text-red-400">
@@ -266,6 +298,12 @@ if (!organization) {
             <p className="mt-1 text-sm text-slate-500">
               People who belong to this organization.
             </p>
+
+            {transferError && (
+              <p className="mt-2 text-sm text-red-400">
+                {transferError}
+              </p>
+            )}
           </div>
 
           {membersQuery.isLoading && (
@@ -287,6 +325,8 @@ if (!organization) {
                 member={member}
                 onRoleChange={handleRoleChange}
                 onRemove={handleRemove}
+                onTransferOwnership={handleTransferOwnership}
+                showTransfer={isOwner}
                 updating={
                   updateRoleMutation.isPending
                 }
@@ -409,6 +449,8 @@ if (!organization) {
           </button>
         </section>
       )}
+
+      <OrganizationActivityFeed organizationId={organizationId} />
     </div>
   );
 }
@@ -420,6 +462,8 @@ interface MemberRowProps {
     role: MembershipRole,
   ) => void;
   onRemove: (member: OrganizationMember) => void;
+  onTransferOwnership: (member: OrganizationMember) => void;
+  showTransfer: boolean;
   updating: boolean;
   removing: boolean;
 }
@@ -428,6 +472,8 @@ function MemberRow({
   member,
   onRoleChange,
   onRemove,
+  onTransferOwnership,
+  showTransfer,
   updating,
   removing,
 }: MemberRowProps) {
@@ -476,6 +522,18 @@ function MemberRow({
             >
               Remove
             </button>
+
+            {showTransfer && (
+              <button
+                type="button"
+                disabled={updating || removing}
+                onClick={() => onTransferOwnership(member)}
+                title="Transfer organization ownership. You will become an admin."
+                className="rounded-lg border border-amber-900 px-3 py-2 text-xs font-medium text-amber-400 transition hover:bg-amber-950/40 disabled:opacity-50"
+              >
+                Make owner
+              </button>
+            )}
           </>
         )}
       </div>

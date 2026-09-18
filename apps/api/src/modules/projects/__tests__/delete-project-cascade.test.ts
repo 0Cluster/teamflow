@@ -17,6 +17,10 @@ vi.mock("../../activity/activity.repository.js", () => ({
   deleteActivitiesByProject: vi.fn(),
 }));
 
+vi.mock("../../activity/activity.service.js", () => ({
+  logActivity: vi.fn(),
+}));
+
 vi.mock("../../comments/comment.repository.js", () => ({
   deleteCommentsByProject: vi.fn(),
 }));
@@ -59,7 +63,7 @@ describe("deleteProjectForOrganization cascade", () => {
       order.push("project");
     });
 
-    await deleteProjectForOrganization("org1", "proj1");
+    await deleteProjectForOrganization("org1", "proj1", "owner1");
 
     expect(deleteCommentsByProject).toHaveBeenCalledWith("org1", "proj1");
     expect(deleteActivitiesByProject).toHaveBeenCalledWith("org1", "proj1");
@@ -72,7 +76,7 @@ describe("deleteProjectForOrganization cascade", () => {
     vi.mocked(findProjectByOrganizationAndId).mockResolvedValue(null);
 
     await expect(
-      deleteProjectForOrganization("org1", "missing"),
+      deleteProjectForOrganization("org1", "missing", "owner1"),
     ).rejects.toMatchObject({ statusCode: 404 });
 
     expect(deleteProject).not.toHaveBeenCalled();
