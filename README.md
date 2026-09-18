@@ -87,9 +87,10 @@ removed without updating the docs.
 - JWT access (15m, Bearer) + rotating httpOnly refresh sessions with reuse
   detection; bcrypt-12 password hashes (72-char cap matches the algorithm limit).
 - Helmet headers, strict single-origin CORS, 100kb JSON body cap.
-- Rate limits: login 20/15min, register 20/hour, refresh 120/hour, all other
-  API routes 500/15min per IP (in-memory; a shared store is required for
-  multi-instance deployments). `trust proxy` is set for correct client IPs.
+- Rate limits count failures only: login 20/15min, register 20/hour,
+  refresh 120/hour, all other API routes 500/15min per IP. Backed by Redis
+  when `REDIS_URL` is set, in-memory otherwise. `trust proxy` is set for
+  correct client IPs.
 - Malformed ObjectIds return 400 (`INVALID_ID_FORMAT`), never 500s; unknown
   errors stay generic. Task search input is regex-escaped (ReDoS-safe).
 - Org/project/task/comment/label/activity reads are membership-scoped;
@@ -125,8 +126,17 @@ for the live integration suite.
 4. No code changes are needed for the socket adapter either: with
    `REDIS_URL` set it attaches automatically for multi-instance rooms.
 
-## Deployment notes
+## Deployment checklist
 
-- API: `npm run build --workspace api && npm start --workspace api` (needs `MONGODB_URI`, `JWT_*_SECRET`, `FRONTEND_URL`).
-- Web: `npm run build --workspace web` → static `apps/web/dist`, point `VITE_API_URL` at the API.
+- API: `npm run build --workspace api && npm start --workspace api`
+  (Node 20+). Required env: `MONGODB_URI`, `JWT_ACCESS_SECRET`,
+  `JWT_REFRESH_SECRET` (each 32+ chars — enforced at boot).
+- `FRONTEND_URL` must be the deployed web URL or CORS/socket connections
+  fail (a boot warning fires if it still points at localhost in production).
+- Cookies: same-domain hosting works with the default `lax`; split-domain
+  hosting (e.g. Vercel + Render) needs `COOKIE_SAMESITE=none` over HTTPS.
+- Web: `npm run build --workspace web` → static `apps/web/dist`.
+  `VITE_API_URL`/`VITE_SOCKET_URL` bake in at build time — rebuild to change.
+- Optional: `REDIS_URL` (rate limits, cache, socket fan-out).
+- Verify: `GET /health` → healthy (+ redis state), `/api/docs` for the API.
 - Never commit `.env`; `.env.example` files are tracked as templates.

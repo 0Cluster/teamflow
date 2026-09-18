@@ -7,6 +7,15 @@ import { app } from "./app.js";
 import { initializeSocketServer } from "./socket/socket.server.js";
 
 async function startServer(): Promise<void> {
+  if (
+    env.NODE_ENV === "production" &&
+    env.FRONTEND_URL.includes("localhost")
+  ) {
+    console.warn(
+      "[config] FRONTEND_URL still points at localhost in production — CORS and sockets will reject the deployed frontend. Set FRONTEND_URL to the deployed web URL.",
+    );
+  }
+
   await connectDatabase();
   await connectRedis();
 
@@ -19,4 +28,7 @@ async function startServer(): Promise<void> {
   });
 }
 
-startServer();
+startServer().catch((error) => {
+  console.error("Failed to start API server", error);
+  process.exit(1);
+});

@@ -7,10 +7,18 @@ const refreshTokenMaxAge = durationToMilliseconds(
   env.JWT_REFRESH_EXPIRES_IN,
 );
 
+const secureCookies = env.NODE_ENV === "production";
+
+if (env.COOKIE_SAMESITE === "none" && !secureCookies) {
+  throw new Error(
+    "COOKIE_SAMESITE=none requires secure cookies, which are only enabled when NODE_ENV=production. Browsers reject insecure SameSite=None cookies.",
+  );
+}
+
 export const refreshTokenCookieOptions: CookieOptions = {
   httpOnly: true,
-  secure: env.NODE_ENV === "production",
-  sameSite: "lax",
+  secure: secureCookies,
+  sameSite: env.COOKIE_SAMESITE,
   path: "/api/v1/auth",
   maxAge: refreshTokenMaxAge,
 };

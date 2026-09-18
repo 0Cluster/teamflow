@@ -9,7 +9,6 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().positive().default(5000),
 
   FRONTEND_URL: z.string().url().default("http://localhost:5173"),
-
   MONGODB_URI: z.string().min(1, "MONGODB_URI is required"),
 
   JWT_ACCESS_SECRET: z
@@ -34,6 +33,8 @@ const envSchema = z.object({
     .string()
     .min(1, "REDIS_URL must be a valid Redis connection string")
     .optional(),
+
+  COOKIE_SAMESITE: z.enum(["lax", "strict", "none"]).default("lax"),
 });
 
 const result = envSchema.safeParse(process.env);
