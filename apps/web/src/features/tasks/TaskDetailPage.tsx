@@ -172,7 +172,92 @@ export function TaskDetailPage() {
     },
   });
 
-  function toggleLabel(labelId: string) {
+  function statusPillClasses(status: TaskStatus): string {
+  switch (status) {
+    case "TODO":
+      return "bg-slate-500/15 text-slate-300";
+
+    case "IN_PROGRESS":
+      return "bg-indigo-500/15 text-indigo-300";
+
+    case "IN_REVIEW":
+      return "bg-amber-500/15 text-amber-300";
+
+    case "DONE":
+      return "bg-emerald-500/15 text-emerald-300";
+  }
+}
+
+function priorityPillClasses(priority: TaskPriority): string {
+  switch (priority) {
+    case "LOW":
+      return "bg-slate-500/15 text-slate-300";
+
+    case "MEDIUM":
+      return "bg-sky-500/15 text-sky-300";
+
+    case "HIGH":
+      return "bg-orange-500/15 text-orange-300";
+
+    case "URGENT":
+      return "bg-red-500/15 text-red-300";
+  }
+}
+
+function isOverdue(
+  dueDate: string | null,
+  status: TaskStatus,
+): boolean {
+  if (!dueDate || status === "DONE") {
+    return false;
+  }
+
+  // eslint-disable-next-line react-hooks/purity -- relative display needs "now"
+  return new Date(dueDate).getTime() < Date.now();
+}
+
+function formatDueDate(dueDate: string | null): string {
+  if (!dueDate) {
+    return "No due date";
+  }
+
+  const date = new Date(dueDate);
+
+  if (Number.isNaN(date.getTime())) {
+    return "Invalid date";
+  }
+
+  const diffDays = Math.ceil(
+    // eslint-disable-next-line react-hooks/purity -- relative display needs "now"
+    (date.getTime() - Date.now()) / (1000 * 60 * 60 * 24),
+  );
+
+  const formatted = date.toLocaleDateString();
+
+  if (diffDays < 0) {
+    const days = Math.abs(diffDays);
+
+    return `${formatted} (${days} day${days === 1 ? "" : "s"} overdue)`;
+  }
+
+  if (diffDays === 0) {
+    return `${formatted} (due today)`;
+  }
+
+  return `${formatted} (in ${diffDays} day${diffDays === 1 ? "" : "s"})`;
+}
+
+function formatDateTime(value: string): string {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return date.toLocaleString();
+}
+
+function toggleLabel(labelId: string) {
     setSelectedLabelIds((current) =>
       current.includes(labelId)
         ? current.filter((id) => id !== labelId)
@@ -495,44 +580,64 @@ export function TaskDetailPage() {
             <div className="rounded-xl border border-slate-800 bg-slate-900 p-6 md:col-span-2">
               <h2 className="text-lg font-semibold text-white">Details</h2>
 
-              <div className="mt-4 space-y-4">
-                {/* Status */}
-                <div>
-                  <p className="text-xs text-slate-500">Status</p>
+              {/* Status + priority pills */}
+              <div className="mt-4 flex flex-wrap gap-2">
+                <span
+                  className={[
+                    "rounded-full px-3 py-1 text-xs font-semibold",
+                    statusPillClasses(task.status),
+                  ].join(" ")}
+                >
+                  {statuses.find((item) => item.value === task.status)?.label}
+                </span>
 
-                  <p className="mt-1 text-sm font-medium text-white">
-                    {statuses.find((item) => item.value === task.status)?.label}
-                  </p>
-                </div>
+                <span
+                  className={[
+                    "rounded-full px-3 py-1 text-xs font-semibold",
+                    priorityPillClasses(task.priority),
+                  ].join(" ")}
+                >
+                  {task.priority}
+                </span>
+              </div>
 
-                {/* Priority */}
-                <div>
-                  <p className="text-xs text-slate-500">Priority</p>
-
-                  <p className="mt-1 text-sm font-medium text-white">
-                    {task.priority}
-                  </p>
-                </div>
-
+              <div className="mt-4 space-y-4 border-t border-slate-800 pt-4">
                 {/* Assignee */}
-                <div>
-                  <p className="text-xs text-slate-500">Assignee</p>
-
-                  <p className="mt-1 text-sm font-medium text-white">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-500/15 text-sm font-bold text-indigo-400">
                     {assignee
-                      ? `${assignee.name} (${assignee.email})`
-                      : "Unassigned"}
-                  </p>
+                      ? assignee.name.charAt(0).toUpperCase()
+                      : "?"}
+                  </span>
+
+                  <div className="min-w-0">
+                    <p className="text-xs text-slate-500">Assignee</p>
+
+                    <p className="truncate text-sm font-medium text-white">
+                      {assignee ? assignee.name : "Unassigned"}
+                    </p>
+
+                    {assignee && (
+                      <p className="truncate text-xs text-slate-500">
+                        {assignee.email}
+                      </p>
+                    )}
+                  </div>
                 </div>
 
                 {/* Due date */}
                 <div>
                   <p className="text-xs text-slate-500">Due date</p>
 
-                  <p className="mt-1 text-sm font-medium text-white">
-                    {task.dueDate
-                      ? new Date(task.dueDate).toLocaleDateString()
-                      : "No due date"}
+                  <p
+                    className={[
+                      "mt-1 text-sm font-medium",
+                      isOverdue(task.dueDate, task.status)
+                        ? "text-red-400"
+                        : "text-white",
+                    ].join(" ")}
+                  >
+                    {formatDueDate(task.dueDate)}
                   </p>
                 </div>
 
@@ -558,24 +663,15 @@ export function TaskDetailPage() {
                     <p className="mt-1 text-sm text-slate-600">No labels</p>
                   )}
                 </div>
+              </div>
 
-                {/* Created */}
-                <div>
-                  <p className="text-xs text-slate-500">Created</p>
+              {/* Timestamps footer */}
+              <div className="mt-4 border-t border-slate-800 pt-3 text-xs text-slate-600">
+                <p>Created {formatDateTime(task.createdAt)}</p>
 
-                  <p className="mt-1 text-sm text-slate-400">
-                    {new Date(task.createdAt).toLocaleString()}
-                  </p>
-                </div>
-
-                {/* Updated */}
-                <div>
-                  <p className="text-xs text-slate-500">Last updated</p>
-
-                  <p className="mt-1 text-sm text-slate-400">
-                    {new Date(task.updatedAt).toLocaleString()}
-                  </p>
-                </div>
+                <p className="mt-1">
+                  Updated {formatDateTime(task.updatedAt)}
+                </p>
               </div>
             </div>
             </div>
