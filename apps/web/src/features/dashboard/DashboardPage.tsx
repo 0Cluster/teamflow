@@ -6,6 +6,7 @@ import { listOrganizations } from "../organizations/organization.api.js";
 import { listMyProjects } from "../projects/project.api.js";
 import { listMyTasks } from "../tasks/task.api.js";
 import { listNotifications } from "../notifications/notification.api.js";
+import { SkeletonStat } from "../../components/ui/Feedback.js";
 
 function formatCount(value: number | undefined): string {
   return value === undefined ? "—" : String(value);
@@ -37,6 +38,12 @@ export function DashboardPage() {
   const recentNotifications =
     notificationsQuery.data?.notifications ?? [];
 
+  const statsLoading =
+    organizationsQuery.isLoading ||
+    projectsQuery.isLoading ||
+    tasksQuery.isLoading ||
+    notificationsQuery.isLoading;
+
   return (
     <div className="mx-auto max-w-7xl">
       <div className="mb-8">
@@ -50,29 +57,40 @@ export function DashboardPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <DashboardCard
-          title="Organizations"
-          value={formatCount(organizationsQuery.data?.length)}
-          description="Your organizations"
-        />
+        {statsLoading ? (
+          <>
+            <SkeletonStat />
+            <SkeletonStat />
+            <SkeletonStat />
+            <SkeletonStat />
+          </>
+        ) : (
+          <>
+            <DashboardCard
+              title="Organizations"
+              value={formatCount(organizationsQuery.data?.length)}
+              description="Your organizations"
+            />
 
-        <DashboardCard
-          title="Projects"
-          value={formatCount(projectsQuery.data?.length)}
-          description="Active projects"
-        />
+            <DashboardCard
+              title="Projects"
+              value={formatCount(projectsQuery.data?.length)}
+              description="Active projects"
+            />
 
-        <DashboardCard
-          title="Tasks"
-          value={formatCount(tasksQuery.data?.pagination.total)}
-          description="Assigned to you"
-        />
+            <DashboardCard
+              title="Tasks"
+              value={formatCount(tasksQuery.data?.pagination.total)}
+              description="Assigned to you"
+            />
 
-        <DashboardCard
-          title="Notifications"
-          value={formatCount(notificationsQuery.data?.unreadCount)}
-          description="Unread notifications"
-        />
+            <DashboardCard
+              title="Notifications"
+              value={formatCount(notificationsQuery.data?.unreadCount)}
+              description="Unread notifications"
+            />
+          </>
+        )}
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_360px]">

@@ -9,6 +9,13 @@ import { listMembers } from "../organizations/membership.api.js";
 
 import { deleteTask, getTask, updateTask } from "./task.api.js";
 import { useLiveTasks } from "../../hooks/use-live-tasks.js";
+import { useToast } from "../../components/ui/Toast.js";
+import { useConfirm } from "../../components/ui/ConfirmDialog.js";
+import {
+  ErrorState,
+  SkeletonCard,
+} from "../../components/ui/Feedback.js";
+import { getErrorMessage } from "../../lib/api-error.js";
 
 import type {
   Task,
@@ -52,6 +59,8 @@ export function TaskDetailPage() {
 
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const toast = useToast();
+  const confirm = useConfirm();
 
   useLiveTasks({
     organizationId,
@@ -158,6 +167,11 @@ export function TaskDetailPage() {
       });
 
       setIsEditing(false);
+      toast.success("Task updated.");
+    },
+
+    onError: (error) => {
+      toast.error(getErrorMessage(error, "Failed to update task."));
     },
   });
 
@@ -165,6 +179,8 @@ export function TaskDetailPage() {
     mutationFn: () => deleteTask(organizationId!, projectId!, taskId!),
 
     onSuccess: () => {
+      toast.success("Task deleted.");
+
       void queryClient.invalidateQueries({
         queryKey: ["project-tasks", organizationId, projectId],
       });
@@ -172,6 +188,10 @@ export function TaskDetailPage() {
       void navigate(
         `/organizations/${organizationId}/projects/${projectId}/tasks`,
       );
+    },
+
+    onError: (error) => {
+      toast.error(getErrorMessage(error, "Failed to delete task."));
     },
   });
 
@@ -383,31 +403,56 @@ function toggleLabel(labelId: string) {
     });
   }
 
+  async function handleDeleteTask() {
+    if (deleteMutation.isPending) {
+      return;
+    }
+
+    const confirmed = await confirm({
+      title: "Delete this task?",
+      message:
+        "The task, its comments, and its history will be permanently removed.",
+      confirmLabel: "Delete task",
+      danger: true,
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    deleteMutation.mutate();
+  }
+
   if (!organizationId || !projectId || !taskId) {
     return <div className="text-sm text-red-400">Invalid task URL.</div>;
   }
 
   if (taskQuery.isLoading) {
     return (
-      <div className="py-10 text-center text-sm text-slate-500">
-        Loading task...
+      <div className="mx-auto max-w-5xl">
+        <div className="mb-6 h-4 w-24 animate-pulse rounded bg-slate-800" />
+        <SkeletonCard lines={4} />
       </div>
     );
   }
 
   if (taskQuery.isError || !task) {
     return (
-      <div>
-        <Link
-          to={`/organizations/${organizationId}/projects/${projectId}/tasks`}
-          className="text-sm text-slate-500 hover:text-slate-300"
-        >
-          ← Tasks
-        </Link>
-
-        <div className="mt-6 rounded-xl border border-red-900 bg-red-950/30 p-5 text-sm text-red-400">
-          Failed to load task.
+      <div className="mx-auto max-w-5xl">
+        <div className="mb-6">
+          <Link
+            to={`/organizations/${organizationId}/projects/${projectId}/tasks`}
+            className="text-sm text-slate-500 hover:text-slate-300"
+          >
+            ← Tasks
+          </Link>
         </div>
+
+        <ErrorState
+          title="Failed to load task."
+          actionLabel="Retry"
+          onAction={() => void taskQuery.refetch()}
+        />
       </div>
     );
   }
@@ -465,13 +510,7 @@ function toggleLabel(labelId: string) {
             <button
               type="button"
               disabled={deleteMutation.isPending}
-              onClick={() => {
-                if (
-                  window.confirm("Are you sure you want to delete this task?")
-                ) {
-                  deleteMutation.mutate();
-                }
-              }}
+              onClick={() => void handleDeleteTask()}
               className="rounded-lg border border-red-900 px-4 py-2 text-sm font-semibold text-red-400 transition hover:bg-red-950/40 disabled:opacity-50"
             >
               {deleteMutation.isPending ? "Deleting..." : "Delete"}

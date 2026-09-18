@@ -36,6 +36,7 @@ export function ActivityFeed({
       isError={activityQuery.isError}
       activities={activityQuery.data ?? []}
       emptyText="No activity yet."
+      onRetry={() => void activityQuery.refetch()}
     />
   );
 }
@@ -47,6 +48,7 @@ interface ActivityTimelineProps {
   isError: boolean;
   activities: Activity[];
   emptyText: string;
+  onRetry?: () => void;
 }
 
 const VISIBLE_ACTIVITY_LIMIT = 5;
@@ -58,6 +60,7 @@ export function ActivityTimeline({
   isError,
   activities,
   emptyText,
+  onRetry,
 }: ActivityTimelineProps) {
   const [expanded, setExpanded] = useState(false);
 
@@ -76,11 +79,27 @@ export function ActivityTimeline({
       </div>
 
       {isLoading && (
-        <p className="text-sm text-slate-500">Loading activity...</p>
+        <div className="space-y-3">
+          <div className="h-4 animate-pulse rounded bg-slate-800" />
+          <div className="h-4 w-5/6 animate-pulse rounded bg-slate-800" />
+          <div className="h-4 w-4/6 animate-pulse rounded bg-slate-800" />
+        </div>
       )}
 
       {isError && (
-        <p className="text-sm text-red-400">Failed to load activity.</p>
+        <div>
+          <p className="text-sm text-red-400">Failed to load activity.</p>
+
+          {onRetry && (
+            <button
+              type="button"
+              onClick={onRetry}
+              className="mt-3 rounded-lg border border-slate-700 px-4 py-2 text-sm font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
+            >
+              Retry
+            </button>
+          )}
+        </div>
       )}
 
       {!isLoading &&

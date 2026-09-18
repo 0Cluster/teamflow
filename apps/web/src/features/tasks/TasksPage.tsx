@@ -10,6 +10,9 @@ import { createTask, listTasks, updateTask } from "./task.api.js";
 
 import type { Task, TaskPriority, TaskStatus } from "./task.types.js";
 import { useLiveTasks } from "../../hooks/use-live-tasks.js";
+import { useToast } from "../../components/ui/Toast.js";
+import { ErrorState } from "../../components/ui/Feedback.js";
+import { getErrorMessage } from "../../lib/api-error.js";
 
 const columns: {
   status: TaskStatus;
@@ -42,6 +45,7 @@ export function TasksPage() {
   }>();
 
   const queryClient = useQueryClient();
+  const toast = useToast();
 
   useLiveTasks({ organizationId, projectId });
 
@@ -152,9 +156,15 @@ export function TasksPage() {
       setAssigneeId("");
       setSelectedLabelIds([]);
 
+      toast.success("Task created.");
+
       void queryClient.invalidateQueries({
         queryKey: ["project-tasks", organizationId, projectId],
       });
+    },
+
+    onError: (error) => {
+      toast.error(getErrorMessage(error, "Failed to create task."));
     },
   });
 
@@ -205,10 +215,12 @@ export function TasksPage() {
       };
     },
 
-    onError: (_error, _variables, context) => {
+    onError: (error, _variables, context) => {
       if (context?.previous) {
         queryClient.setQueryData(context.queryKey, context.previous);
       }
+
+      toast.error(getErrorMessage(error, "Failed to move task."));
     },
 
     onSettled: () => {
@@ -518,16 +530,30 @@ export function TasksPage() {
 
       {/* Loading */}
       {tasksQuery.isLoading && (
-        <div className="py-9 text-center text-sm text-slate-500">
-          Loading tasks...
+        <div className="grid gap-2 overflow-x-auto pb-4 lg:grid-cols-4">
+          {columns.map((column) => (
+            <div
+              key={column.status}
+              aria-hidden="true"
+              className="min-h-[421px] min-w-[280px] animate-pulse rounded-xl border border-slate-800 bg-slate-900/70 p-3"
+            >
+              <div className="mb-2 h-4 w-1/2 rounded bg-slate-800" />
+              <div className="space-y-1">
+                <div className="h-20 rounded-lg bg-slate-800" />
+                <div className="h-20 rounded-lg bg-slate-800" />
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
       {/* Error */}
       {tasksQuery.isError && (
-        <div className="rounded-xl border border-red-900 bg-red-950/30 p-5 text-sm text-red-400">
-          Failed to load tasks.
-        </div>
+        <ErrorState
+          title="Failed to load tasks."
+          actionLabel="Retry"
+          onAction={() => void tasksQuery.refetch()}
+        />
       )}
 
       {/* Kanban */}

@@ -11,6 +11,14 @@ import {
 } from "./label.api.js";
 
 import type { Label } from "./label.types.js";
+import { useToast } from "../../components/ui/Toast.js";
+import { useConfirm } from "../../components/ui/ConfirmDialog.js";
+import {
+  EmptyState,
+  ErrorState,
+  SkeletonCard,
+} from "../../components/ui/Feedback.js";
+import { getErrorMessage } from "../../lib/api-error.js";
 
 export function LabelsPage() {
   const { organizationId } = useParams<{ organizationId: string }>();
@@ -23,6 +31,8 @@ export function LabelsPage() {
   const [editingName, setEditingName] = useState("");
   const [editingColor, setEditingColor] = useState("#6366f1");
   const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const toast = useToast();
+  const confirm = useConfirm();
   const labelsQuery = useQuery({
     queryKey: ["organization-labels", organizationId],
     queryFn: () => listLabels(organizationId!),
@@ -40,9 +50,15 @@ export function LabelsPage() {
       setName("");
       setColor("#6366f1");
 
+      toast.success("Label created.");
+
       void queryClient.invalidateQueries({
         queryKey: ["organization-labels", organizationId],
       });
+    },
+
+    onError: (error) => {
+      toast.error(getErrorMessage(error, "Failed to create label."));
     },
   });
 
@@ -64,9 +80,15 @@ export function LabelsPage() {
     onSuccess: () => {
       setEditingLabelId(null);
 
+      toast.success("Label updated.");
+
       void queryClient.invalidateQueries({
         queryKey: ["organization-labels", organizationId],
       });
+    },
+
+    onError: (error) => {
+      toast.error(getErrorMessage(error, "Failed to update label."));
     },
   });
 
@@ -74,9 +96,15 @@ export function LabelsPage() {
     mutationFn: (labelId: string) => deleteLabel(organizationId!, labelId),
 
     onSuccess: () => {
+      toast.success("Label deleted.");
+
       void queryClient.invalidateQueries({
         queryKey: ["organization-labels", organizationId],
       });
+    },
+
+    onError: (error) => {
+      toast.error(getErrorMessage(error, "Failed to delete label."));
     },
   });
 
@@ -116,12 +144,18 @@ export function LabelsPage() {
     });
   }
 
-  function handleDelete(label: Label) {
+  async function handleDelete(label: Label) {
     if (deleteMutation.isPending) {
       return;
     }
 
-    const confirmed = window.confirm(`Delete the "${label.name}" label?`);
+    const confirmed = await confirm({
+      title: `Delete "${label.name}"?`,
+      message:
+        "Tasks using this label will keep their other data, but the label itself is gone for everyone.",
+      confirmLabel: "Delete label",
+      danger: true,
+    });
 
     if (!confirmed) {
       return;
@@ -209,22 +243,30 @@ export function LabelsPage() {
         </div>
 
         {labelsQuery.isLoading && (
-          <div className="p-5 text-sm text-slate-500">Loading labels...</div>
+          <div className="space-y-3 p-5">
+            <SkeletonCard lines={2} />
+            <SkeletonCard lines={2} />
+          </div>
         )}
 
         {labelsQuery.isError && (
-          <div className="p-5 text-sm text-red-400">Failed to load labels.</div>
+          <div className="p-5">
+            <ErrorState
+              title="Failed to load labels."
+              actionLabel="Retry"
+              onAction={() => void labelsQuery.refetch()}
+            />
+          </div>
         )}
 
         {!labelsQuery.isLoading &&
           !labelsQuery.isError &&
           labelsQuery.data?.length === 0 && (
-            <div className="p-8 text-center">
-              <p className="text-sm text-slate-400">No labels yet.</p>
-
-              <p className="mt-1 text-xs text-slate-600">
-                Create your first label above.
-              </p>
+            <div className="p-5">
+              <EmptyState
+                title="No labels yet."
+                hint="Create your first label above."
+              />
             </div>
           )}
 
@@ -304,7 +346,7 @@ export function LabelsPage() {
 
                     <button
                       type="button"
-                      onClick={() => handleDelete(label)}
+                      onClick={() => void handleDelete(label)}
                       disabled={deleteMutation.isPending}
                       className="rounded-lg border border-red-900 px-3 py-2 text-sm font-medium text-red-400 transition hover:bg-red-950 disabled:cursor-not-allowed disabled:opacity-50"
                     >

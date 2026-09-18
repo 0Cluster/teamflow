@@ -17,6 +17,14 @@ import type {
   MembershipRole,
   OrganizationMember,
 } from "./membership.types.js";
+import { useToast } from "../../components/ui/Toast.js";
+import { useConfirm } from "../../components/ui/ConfirmDialog.js";
+import {
+  ErrorState,
+  SkeletonCard,
+  SkeletonRow,
+} from "../../components/ui/Feedback.js";
+import { getErrorMessage } from "../../lib/api-error.js";
 
 const roles: MembershipRole[] = [
   "ADMIN",
@@ -48,6 +56,8 @@ export function OrganizationDetailPage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const toast = useToast();
+  const confirm = useConfirm();
 
   const [email, setEmail] = useState("");
   const [role, setRole] =
@@ -81,6 +91,8 @@ export function OrganizationDetailPage() {
       setRole("MEMBER");
       setError("");
 
+      toast.success("Member added.");
+
       await queryClient.invalidateQueries({
         queryKey: [
           "organizations",
@@ -89,8 +101,10 @@ export function OrganizationDetailPage() {
         ],
       });
     },
-    onError: () => {
-      setError("Failed to add member.");
+    onError: (error) => {
+      const message = getErrorMessage(error, "Failed to add member.");
+      setError(message);
+      toast.error(message);
     },
   });
 
@@ -108,6 +122,8 @@ export function OrganizationDetailPage() {
         { role },
       ),
     onSuccess: async () => {
+      toast.success("Member updated.");
+
       await queryClient.invalidateQueries({
         queryKey: [
           "organizations",
@@ -115,6 +131,13 @@ export function OrganizationDetailPage() {
           "members",
         ],
       });
+    },
+    onError: (error, variables) => {
+      if (variables.role === "OWNER") {
+        return;
+      }
+
+      toast.error(getErrorMessage(error, "Failed to update member."));
     },
   });
 
@@ -122,6 +145,8 @@ export function OrganizationDetailPage() {
     mutationFn: (userId: string) =>
       removeMember(organizationId!, userId),
     onSuccess: async () => {
+      toast.success("Member removed.");
+
       await queryClient.invalidateQueries({
         queryKey: [
           "organizations",
@@ -130,11 +155,16 @@ export function OrganizationDetailPage() {
         ],
       });
     },
+    onError: (error) => {
+      toast.error(getErrorMessage(error, "Failed to remove member."));
+    },
   });
 
   const leaveMutation = useMutation({
     mutationFn: () => leaveOrganization(organizationId!),
     onSuccess: async () => {
+      toast.success("You have left the organization.");
+
       await queryClient.invalidateQueries({
         queryKey: ["organizations"],
       });
@@ -160,6 +190,7 @@ export function OrganizationDetailPage() {
     mutationFn: () => deleteOrganization(organizationId!),
     onSuccess: async () => {
       setDeleteError("");
+      toast.success("Organization deleted.");
 
       await queryClient.invalidateQueries({
         queryKey: ["organizations"],
@@ -209,24 +240,32 @@ export function OrganizationDetailPage() {
     return false;
   }
 
-  function handleLeave() {
-    if (
-      !window.confirm(
-        "Leave this organization? You will lose access to its projects and tasks.",
-      )
-    ) {
+  async function handleLeave() {
+    const confirmed = await confirm({
+      title: "Leave this organization?",
+      message:
+        "You will lose access to its projects and tasks. An owner or admin can re-invite you later.",
+      confirmLabel: "Leave",
+      danger: true,
+    });
+
+    if (!confirmed) {
       return;
     }
 
     leaveMutation.mutate();
   }
 
-  function handleDelete() {
-    if (
-      !window.confirm(
-        `Delete "${organizationQuery.data?.name}" and all its projects, tasks, and data? This cannot be undone.`,
-      )
-    ) {
+  async function handleDelete() {
+    const confirmed = await confirm({
+      title: `Delete "${organizationQuery.data?.name}"?`,
+      message:
+        "This permanently removes all its projects, tasks, labels, members, and history. This cannot be undone.",
+      confirmLabel: "Delete organization",
+      danger: true,
+    });
+
+    if (!confirmed) {
       return;
     }
 
@@ -261,32 +300,40 @@ export function OrganizationDetailPage() {
     });
   }
 
-  function handleRemove(member: OrganizationMember) {
+  async function handleRemove(member: OrganizationMember) {
     if (member.role === "OWNER") {
       return;
     }
 
-    if (
-      !window.confirm(
-        `Remove ${member.name} from this organization?`,
-      )
-    ) {
+    const confirmed = await confirm({
+      title: `Remove ${member.name}?`,
+      message:
+        "They will immediately lose access to this organization's projects and tasks.",
+      confirmLabel: "Remove member",
+      danger: true,
+    });
+
+    if (!confirmed) {
       return;
     }
 
     removeMemberMutation.mutate(member.userId);
   }
 
-  function handleTransferOwnership(member: OrganizationMember) {
+  async function handleTransferOwnership(member: OrganizationMember) {
     if (member.role === "OWNER") {
       return;
     }
 
-    if (
-      !window.confirm(
-        `Transfer ownership to ${member.name}? You will become an admin. This cannot be undone except by the new owner.`,
-      )
-    ) {
+    const confirmed = await confirm({
+      title: `Transfer ownership to ${member.name}?`,
+      message:
+        "You will become an admin. This cannot be undone except by the new owner.",
+      confirmLabel: "Transfer ownership",
+      danger: true,
+    });
+
+    if (!confirmed) {
       return;
     }
 
@@ -303,6 +350,9 @@ export function OrganizationDetailPage() {
             "Failed to transfer ownership. Only the owner can transfer it.",
           );
         },
+        onSuccess: () => {
+          toast.success(`Ownership transferred to ${member.name}.`);
+        },
       },
     );
   }
@@ -317,16 +367,22 @@ export function OrganizationDetailPage() {
 
   if (organizationQuery.isLoading) {
     return (
-      <div className="text-slate-400">
-        Loading organization...
+      <div className="mx-auto max-w-7xl">
+        <div className="mb-6 h-4 w-32 animate-pulse rounded bg-slate-800" />
+        <div className="mb-8 h-8 w-64 animate-pulse rounded bg-slate-800" />
+        <SkeletonCard lines={4} />
       </div>
     );
   }
 
   if (organizationQuery.isError) {
     return (
-      <div className="rounded-xl border border-red-900 bg-red-950/40 p-6 text-red-300">
-        Failed to load organization.
+      <div className="mx-auto max-w-7xl">
+        <ErrorState
+          title="Failed to load organization."
+          actionLabel="Retry"
+          onAction={() => void organizationQuery.refetch()}
+        />
       </div>
     );
   }
@@ -393,14 +449,20 @@ if (!organization) {
           </div>
 
           {membersQuery.isLoading && (
-            <div className="p-5 text-sm text-slate-400">
-              Loading members...
+            <div className="space-y-3 p-5">
+              <SkeletonRow />
+              <SkeletonRow />
+              <SkeletonRow />
             </div>
           )}
 
           {membersQuery.isError && (
-            <div className="p-5 text-sm text-red-400">
-              Failed to load members.
+            <div className="p-5">
+              <ErrorState
+                title="Failed to load members."
+                actionLabel="Retry"
+                onAction={() => void membersQuery.refetch()}
+              />
             </div>
           )}
 

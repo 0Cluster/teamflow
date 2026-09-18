@@ -3,9 +3,17 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { Link } from "react-router-dom";
 import { createOrganization, listOrganizations } from "./organization.api.js";
+import { useToast } from "../../components/ui/Toast.js";
+import {
+  EmptyState,
+  ErrorState,
+  SkeletonCard,
+} from "../../components/ui/Feedback.js";
+import { getErrorMessage } from "../../lib/api-error.js";
 
 export function OrganizationsPage() {
   const queryClient = useQueryClient();
+  const toast = useToast();
 
   const [name, setName] = useState("");
   const [error, setError] = useState("");
@@ -21,35 +29,20 @@ export function OrganizationsPage() {
       setName("");
       setError("");
 
+      toast.success("Organization created.");
+
       await queryClient.invalidateQueries({
         queryKey: ["organizations"],
       });
     },
     onError: (mutationError) => {
-      if (
-        mutationError &&
-        typeof mutationError === "object" &&
-        "response" in mutationError
-      ) {
-        const axiosError = mutationError as {
-          response?: {
-            data?: {
-              error?: {
-                message?: string;
-              };
-            };
-          };
-        };
+      const message = getErrorMessage(
+        mutationError,
+        "Failed to create organization",
+      );
 
-        setError(
-          axiosError.response?.data?.error?.message ??
-            "Failed to create organization",
-        );
-
-        return;
-      }
-
-      setError("Failed to create organization");
+      setError(message);
+      toast.error(message);
     },
   });
 
@@ -57,7 +50,12 @@ export function OrganizationsPage() {
     event.preventDefault();
 
     if (!name.trim()) {
-      setError("Name is required");
+      setError("Name is required (at least 2 characters).");
+      return;
+    }
+
+    if (name.trim().length < 2) {
+      setError("Name must be at least 2 characters.");
       return;
     }
 
@@ -87,23 +85,27 @@ export function OrganizationsPage() {
           </div>
 
           {organizationsQuery.isLoading && (
-            <div className="rounded-xl border border-slate-800 bg-slate-900 p-6 text-slate-400">
-              Loading organizations...
+            <div className="space-y-3">
+              <SkeletonCard lines={2} />
+              <SkeletonCard lines={2} />
             </div>
           )}
 
           {organizationsQuery.isError && (
-            <div className="rounded-xl border border-red-900 bg-red-950/40 p-6 text-sm text-red-300">
-              Failed to load organizations.
-            </div>
+            <ErrorState
+              title="Failed to load organizations."
+              actionLabel="Retry"
+              onAction={() => void organizationsQuery.refetch()}
+            />
           )}
 
           {!organizationsQuery.isLoading &&
             !organizationsQuery.isError &&
             organizationsQuery.data?.length === 0 && (
-              <div className="rounded-xl border border-slate-800 bg-slate-900 p-6 text-sm text-slate-400">
-                You don't belong to any organizations yet.
-              </div>
+              <EmptyState
+                title="No organizations yet."
+                hint="Create one to get your team started."
+              />
             )}
 
           <div className="space-y-3">

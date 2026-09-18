@@ -10,6 +10,13 @@ import { deleteProject, getProject } from "./project.api.js";
 import { listTasks } from "../tasks/task.api.js";
 import { listMembers } from "../organizations/membership.api.js";
 import { useAuth } from "../auth/use-auth.js";
+import { useToast } from "../../components/ui/Toast.js";
+import { useConfirm } from "../../components/ui/ConfirmDialog.js";
+import {
+  ErrorState,
+  SkeletonCard,
+} from "../../components/ui/Feedback.js";
+import { getErrorMessage } from "../../lib/api-error.js";
 
 export function ProjectDetailPage() {
   const { organizationId, projectId } = useParams<{
@@ -20,6 +27,8 @@ export function ProjectDetailPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const toast = useToast();
+  const confirm = useConfirm();
   const [deleteError, setDeleteError] = useState("");
 
   const projectQuery = useQuery({
@@ -54,7 +63,7 @@ export function ProjectDetailPage() {
     mutationFn: () => deleteProject(organizationId!, projectId!),
     onSuccess: async () => {
       setDeleteError("");
-
+      toast.success("Project deleted.");
       await queryClient.invalidateQueries({
         queryKey: ["organization-projects", organizationId],
       });
@@ -69,8 +78,9 @@ export function ProjectDetailPage() {
 
       await navigate(`/organizations/${organizationId}/projects`);
     },
-    onError: () => {
+    onError: (error) => {
       setDeleteError("Only the organization owner can delete this project.");
+      toast.error(getErrorMessage(error, "Failed to delete project."));
     },
   });
 
@@ -79,12 +89,16 @@ export function ProjectDetailPage() {
       (member) => member.userId === user?.id && member.role === "OWNER",
     ) ?? false;
 
-  function handleDelete() {
-    if (
-      !window.confirm(
-        `Delete "${projectQuery.data?.name}" and all its tasks? This cannot be undone.`,
-      )
-    ) {
+  async function handleDelete() {
+    const confirmed = await confirm({
+      title: `Delete "${projectQuery.data?.name}"?`,
+      message:
+        "This permanently removes all its tasks, comments, and activity. This cannot be undone.",
+      confirmLabel: "Delete project",
+      danger: true,
+    });
+
+    if (!confirmed) {
       return;
     }
 
@@ -97,16 +111,21 @@ export function ProjectDetailPage() {
 
   if (projectQuery.isLoading) {
     return (
-      <div className="text-slate-400">
-        Loading project...
+      <div className="mx-auto max-w-7xl">
+        <div className="mb-6 h-4 w-32 animate-pulse rounded bg-slate-800" />
+        <SkeletonCard lines={4} />
       </div>
     );
   }
 
   if (projectQuery.isError || !projectQuery.data) {
     return (
-      <div className="rounded-xl border border-red-900 bg-red-950/30 p-5 text-red-400">
-        Failed to load project.
+      <div className="mx-auto max-w-7xl">
+        <ErrorState
+          title="Failed to load project."
+          actionLabel="Retry"
+          onAction={() => void projectQuery.refetch()}
+        />
       </div>
     );
   }
@@ -157,7 +176,7 @@ export function ProjectDetailPage() {
             <button
               type="button"
               disabled={deleteMutation.isPending}
-              onClick={handleDelete}
+              onClick={() => void handleDelete()}
               className="shrink-0 rounded-lg border border-red-900 px-4 py-2 text-sm font-semibold text-red-400 transition hover:bg-red-950/40 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {deleteMutation.isPending ? "Deleting..." : "Delete project"}

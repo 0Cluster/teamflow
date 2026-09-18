@@ -13,6 +13,14 @@ import {
   updateComment,
 } from "./comment.api.js";
 import type { Comment } from "./comment.types.js";
+import { useToast } from "../../components/ui/Toast.js";
+import { useConfirm } from "../../components/ui/ConfirmDialog.js";
+import {
+  EmptyState,
+  ErrorState,
+  SkeletonRow,
+} from "../../components/ui/Feedback.js";
+import { getErrorMessage } from "../../lib/api-error.js";
 
 interface CommentsSectionProps {
   organizationId: string;
@@ -27,6 +35,8 @@ export function CommentsSection({
 }: CommentsSectionProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const toast = useToast();
+  const confirm = useConfirm();
 
   const [content, setContent] = useState("");
   const [editingCommentId, setEditingCommentId] =
@@ -64,6 +74,8 @@ export function CommentsSection({
     onSuccess: () => {
       setContent("");
 
+      toast.success("Comment posted.");
+
       void queryClient.invalidateQueries({
         queryKey: [
           "task-comments",
@@ -72,6 +84,10 @@ export function CommentsSection({
           taskId,
         ],
       });
+    },
+
+    onError: (error) => {
+      toast.error(getErrorMessage(error, "Failed to add comment."));
     },
   });
 
@@ -95,6 +111,8 @@ export function CommentsSection({
       setEditingCommentId(null);
       setEditingContent("");
 
+      toast.success("Comment updated.");
+
       void queryClient.invalidateQueries({
         queryKey: [
           "task-comments",
@@ -103,6 +121,10 @@ export function CommentsSection({
           taskId,
         ],
       });
+    },
+
+    onError: (error) => {
+      toast.error(getErrorMessage(error, "Failed to update comment."));
     },
   });
 
@@ -116,6 +138,8 @@ export function CommentsSection({
       ),
 
     onSuccess: () => {
+      toast.success("Comment deleted.");
+
       void queryClient.invalidateQueries({
         queryKey: [
           "task-comments",
@@ -124,6 +148,10 @@ export function CommentsSection({
           taskId,
         ],
       });
+    },
+
+    onError: (error) => {
+      toast.error(getErrorMessage(error, "Failed to delete comment."));
     },
   });
 
@@ -170,14 +198,17 @@ export function CommentsSection({
     });
   }
 
-  function handleDeleteComment(commentId: string) {
+  async function handleDeleteComment(commentId: string) {
     if (deleteMutation.isPending) {
       return;
     }
 
-    const confirmed = window.confirm(
-      "Delete this comment?",
-    );
+    const confirmed = await confirm({
+      title: "Delete this comment?",
+      message: "This cannot be undone.",
+      confirmLabel: "Delete comment",
+      danger: true,
+    });
 
     if (!confirmed) {
       return;
@@ -246,29 +277,27 @@ export function CommentsSection({
       </form>
 
       {commentsQuery.isLoading && (
-        <p className="text-sm text-slate-500">
-          Loading comments...
-        </p>
+        <div className="space-y-3">
+          <SkeletonRow />
+          <SkeletonRow />
+        </div>
       )}
 
       {commentsQuery.isError && (
-        <p className="text-sm text-red-400">
-          Failed to load comments.
-        </p>
+        <ErrorState
+          title="Failed to load comments."
+          actionLabel="Retry"
+          onAction={() => void commentsQuery.refetch()}
+        />
       )}
 
       {!commentsQuery.isLoading &&
         !commentsQuery.isError &&
         comments.length === 0 && (
-          <div className="rounded-lg border border-dashed border-slate-800 px-4 py-8 text-center">
-            <p className="text-sm text-slate-500">
-              No comments yet.
-            </p>
-
-            <p className="mt-1 text-xs text-slate-600">
-              Be the first to start the discussion.
-            </p>
-          </div>
+          <EmptyState
+            title="No comments yet."
+            hint="Be the first to start the discussion."
+          />
         )}
 
       <div className="space-y-5">

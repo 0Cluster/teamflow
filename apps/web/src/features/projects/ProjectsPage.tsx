@@ -9,6 +9,13 @@ import {
 
 import type { CreateProjectInput } from "./project.types.js";
 import { useLiveProjects } from "../../hooks/use-live-projects.js";
+import { useToast } from "../../components/ui/Toast.js";
+import {
+  EmptyState,
+  ErrorState,
+  SkeletonCard,
+} from "../../components/ui/Feedback.js";
+import { getErrorMessage } from "../../lib/api-error.js";
 
 export function ProjectsPage() {
   const { organizationId } = useParams<{
@@ -16,6 +23,7 @@ export function ProjectsPage() {
   }>();
 
   const queryClient = useQueryClient();
+  const toast = useToast();
 
   useLiveProjects(organizationId);
 
@@ -23,7 +31,7 @@ export function ProjectsPage() {
     register,
     handleSubmit,
     reset,
-    formState: { isSubmitting },
+    formState: { errors, isSubmitting },
   } = useForm<CreateProjectInput>();
 
   const projectsQuery = useQuery({
@@ -39,9 +47,15 @@ export function ProjectsPage() {
     onSuccess: () => {
       reset();
 
+      toast.success("Project created.");
+
       void queryClient.invalidateQueries({
         queryKey: ["organization-projects", organizationId],
       });
+    },
+
+    onError: (error) => {
+      toast.error(getErrorMessage(error, "Failed to create project."));
     },
   });
 
@@ -50,13 +64,26 @@ export function ProjectsPage() {
   }
 
   if (projectsQuery.isLoading) {
-    return <div className="text-slate-400">Loading projects...</div>;
+    return (
+      <div className="mx-auto max-w-7xl">
+        <div className="mb-8 h-8 w-48 animate-pulse rounded bg-slate-800" />
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <SkeletonCard />
+          <SkeletonCard />
+        </div>
+      </div>
+    );
   }
 
   if (projectsQuery.isError) {
     return (
-      <div className="rounded-xl border border-red-900 bg-red-950/30 p-5 text-red-400">
-        Failed to load projects.
+      <div className="mx-auto max-w-7xl">
+        <ErrorState
+          title="Failed to load projects."
+          actionLabel="Retry"
+          onAction={() => void projectsQuery.refetch()}
+        />
       </div>
     );
   }
@@ -82,15 +109,10 @@ export function ProjectsPage() {
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
         <section>
           {projects.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-slate-700 bg-slate-900 p-8 text-center">
-              <h2 className="text-lg font-semibold text-white">
-                No projects yet
-              </h2>
-
-              <p className="mt-2 text-sm text-slate-500">
-                Create your first project to get started.
-              </p>
-            </div>
+            <EmptyState
+              title="No projects yet"
+              hint="Create your first project to get started."
+            />
           ) : (
             <div className="grid gap-4 sm:grid-cols-2">
               {projects.map((project) => (
@@ -145,11 +167,25 @@ export function ProjectsPage() {
 
               <input
                 {...register("name", {
-                  required: true,
+                  required: "Name is required",
+                  minLength: {
+                    value: 2,
+                    message: "Name must be at least 2 characters",
+                  },
+                  maxLength: {
+                    value: 100,
+                    message: "Name must be at most 100 characters",
+                  },
                 })}
                 placeholder="TeamFlow API"
                 className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-indigo-500"
               />
+
+              {errors.name && (
+                <p className="mt-1 text-xs text-red-400">
+                  {errors.name.message}
+                </p>
+              )}
             </div>
 
             <div>
@@ -159,15 +195,26 @@ export function ProjectsPage() {
 
               <input
                 {...register("key", {
-                  required: true,
+                  required: "Key is required",
+                  pattern: {
+                    value: /^[A-Za-z][A-Za-z0-9]{1,9}$/,
+                    message:
+                      "2-10 letters/numbers starting with a letter",
+                  },
                 })}
                 placeholder="API"
                 className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm uppercase text-white outline-none placeholder:text-slate-600 focus:border-indigo-500"
               />
 
-              <p className="mt-1 text-xs text-slate-600">
-                Used for task identifiers such as API-42.
-              </p>
+              {errors.key ? (
+                <p className="mt-1 text-xs text-red-400">
+                  {errors.key.message}
+                </p>
+              ) : (
+                <p className="mt-1 text-xs text-slate-600">
+                  Used for task identifiers such as API-42.
+                </p>
+              )}
             </div>
 
             <div>

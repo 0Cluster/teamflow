@@ -7,7 +7,17 @@ import {
   markNotificationAsRead,
 } from "./notification.api.js";
 
-import type { Notification } from "./notification.types.js";
+import type {
+  Notification,
+  NotificationsResponse,
+} from "./notification.types.js";
+import { useToast } from "../../components/ui/Toast.js";
+import {
+  EmptyState,
+  ErrorState,
+  SkeletonRow,
+} from "../../components/ui/Feedback.js";
+import { getErrorMessage } from "../../lib/api-error.js";
 
 function formatNotificationDate(date: string): string {
   const value = new Date(date);
@@ -45,6 +55,7 @@ function getNotificationIcon(type: Notification["type"]): string {
 
 export function NotificationsPage() {
   const queryClient = useQueryClient();
+  const toast = useToast();
 
   const notificationsQuery = useQuery({
     queryKey: ["notifications"],
@@ -58,7 +69,43 @@ export function NotificationsPage() {
   const markReadMutation = useMutation({
     mutationFn: markNotificationAsRead,
 
-    onSuccess: () => {
+    onMutate: async (notificationId) => {
+      await queryClient.cancelQueries({
+        queryKey: ["notifications"],
+      });
+
+      const previous =
+        queryClient.getQueryData<NotificationsResponse>([
+          "notifications",
+        ]);
+
+      if (previous) {
+        queryClient.setQueryData<NotificationsResponse>(
+          ["notifications"],
+          {
+            ...previous,
+            unreadCount: Math.max(0, previous.unreadCount - 1),
+            notifications: previous.notifications.map((notification) =>
+              notification.id === notificationId
+                ? { ...notification, isRead: true }
+                : notification,
+            ),
+          },
+        );
+      }
+
+      return { previous };
+    },
+
+    onError: (error, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["notifications"], context.previous);
+      }
+
+      toast.error(getErrorMessage(error, "Failed to update notification."));
+    },
+
+    onSettled: () => {
       void queryClient.invalidateQueries({
         queryKey: ["notifications"],
       });
@@ -69,9 +116,15 @@ export function NotificationsPage() {
     mutationFn: markAllNotificationsAsRead,
 
     onSuccess: () => {
+      toast.success("All caught up.");
+
       void queryClient.invalidateQueries({
         queryKey: ["notifications"],
       });
+    },
+
+    onError: (error) => {
+      toast.error(getErrorMessage(error, "Failed to update notifications."));
     },
   });
 
@@ -90,8 +143,12 @@ export function NotificationsPage() {
   if (notificationsQuery.isLoading) {
     return (
       <div className="mx-auto max-w-5xl">
-        <div className="py-12 text-center text-sm text-slate-500">
-          Loading notifications...
+        <div className="mb-6 h-8 w-48 animate-pulse rounded bg-slate-800" />
+
+        <div className="space-y-3">
+          <SkeletonRow />
+          <SkeletonRow />
+          <SkeletonRow />
         </div>
       </div>
     );
@@ -100,9 +157,11 @@ export function NotificationsPage() {
   if (notificationsQuery.isError) {
     return (
       <div className="mx-auto max-w-5xl">
-        <div className="rounded-xl border border-red-900 bg-red-950/30 p-5 text-sm text-red-400">
-          Failed to load notifications.
-        </div>
+        <ErrorState
+          title="Failed to load notifications."
+          actionLabel="Retry"
+          onAction={() => void notificationsQuery.refetch()}
+        />
       </div>
     );
   }
@@ -144,15 +203,10 @@ export function NotificationsPage() {
 
       {/* Empty */}
       {notifications.length === 0 && (
-        <div className="rounded-xl border border-slate-800 bg-slate-900 p-10 text-center">
-          <p className="text-sm font-medium text-white">
-            You're all caught up.
-          </p>
-
-          <p className="mt-1 text-sm text-slate-500">
-            New notifications will appear here.
-          </p>
-        </div>
+        <EmptyState
+          title="You're all caught up."
+          hint="New notifications will appear here."
+        />
       )}
 
       {/* Notifications */}

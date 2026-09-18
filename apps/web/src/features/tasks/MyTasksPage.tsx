@@ -6,6 +6,7 @@ import { listMyTasks } from "./task.api.js";
 import type { TaskPriority, TaskStatus } from "./task.types.js";
 import { listOrganizations } from "../organizations/organization.api.js";
 import { useLiveMyTasks } from "../../hooks/use-live-tasks.js";
+import { ErrorState, SkeletonRow } from "../../components/ui/Feedback.js";
 
 export function MyTasksPage() {
   const [search, setSearch] = useState("");
@@ -97,15 +98,19 @@ export function MyTasksPage() {
       </div>
 
       {tasksQuery.isLoading && (
-        <div className="py-9 text-center text-sm text-slate-500">
-          Loading tasks...
+        <div className="space-y-2">
+          <SkeletonRow />
+          <SkeletonRow />
+          <SkeletonRow />
         </div>
       )}
 
       {tasksQuery.isError && (
-        <div className="rounded-xl border border-red-900 bg-red-950/30 p-5 text-sm text-red-400">
-          Failed to load tasks.
-        </div>
+        <ErrorState
+          title="Failed to load tasks."
+          actionLabel="Retry"
+          onAction={() => void tasksQuery.refetch()}
+        />
       )}
 
       {!tasksQuery.isLoading && !tasksQuery.isError && tasks.length === 0 && (

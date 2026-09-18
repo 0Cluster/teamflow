@@ -1,6 +1,9 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { PropsWithChildren } from "react";
 
+import { ToastProvider } from "../components/ui/Toast.js";
+import { ConfirmProvider } from "../components/ui/ConfirmDialog.js";
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -15,7 +18,9 @@ export function AppProviders({
 }: PropsWithChildren) {
   return (
     <QueryClientProvider client={queryClient}>
-      {children}
+      <ToastProvider>
+        <ConfirmProvider>{children}</ConfirmProvider>
+      </ToastProvider>
     </QueryClientProvider>
   );
 }

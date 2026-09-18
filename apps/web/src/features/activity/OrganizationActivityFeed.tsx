@@ -28,6 +28,7 @@ export function OrganizationActivityFeed({
         isError={activityQuery.isError}
         activities={activityQuery.data ?? []}
         emptyText="No activity yet. Create a project or invite a member to get started."
+        onRetry={() => void activityQuery.refetch()}
       />
     </div>
   );

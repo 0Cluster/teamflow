@@ -1,11 +1,18 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import { listOrganizations } from "../organizations/organization.api.js";
 import { listMyProjects } from "./project.api.js";
 import { useLiveMyProjects } from "../../hooks/use-live-projects.js";
+import {
+  EmptyState,
+  ErrorState,
+  SkeletonCard,
+} from "../../components/ui/Feedback.js";
 
 export function MyProjectsPage() {
+  const navigate = useNavigate();
+
   const projectsQuery = useQuery({
     queryKey: ["my-projects"],
     queryFn: listMyProjects,
@@ -21,13 +28,26 @@ export function MyProjectsPage() {
   );
 
   if (projectsQuery.isLoading) {
-    return <div className="text-slate-400">Loading projects...</div>;
+    return (
+      <div className="mx-auto max-w-7xl">
+        <div className="mb-8 h-8 w-48 animate-pulse rounded bg-slate-800" />
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <SkeletonCard />
+          <SkeletonCard />
+        </div>
+      </div>
+    );
   }
 
   if (projectsQuery.isError) {
     return (
-      <div className="rounded-xl border border-red-900 bg-red-950/30 p-5 text-red-400">
-        Failed to load projects.
+      <div className="mx-auto max-w-7xl">
+        <ErrorState
+          title="Failed to load projects."
+          actionLabel="Retry"
+          onAction={() => void projectsQuery.refetch()}
+        />
       </div>
     );
   }
@@ -55,20 +75,12 @@ export function MyProjectsPage() {
       </div>
 
       {projects.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-slate-700 bg-slate-900 p-8 text-center">
-          <h2 className="text-lg font-semibold text-white">No projects yet</h2>
-
-          <p className="mt-2 text-sm text-slate-500">
-            Projects appear here once you join an organization with projects.
-          </p>
-
-          <Link
-            to="/organizations"
-            className="mt-4 inline-block rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500"
-          >
-            Go to organizations
-          </Link>
-        </div>
+        <EmptyState
+          title="No projects yet"
+          hint="Projects appear here once you join an organization with projects."
+          actionLabel="Go to organizations"
+          onAction={() => void navigate("/organizations")}
+        />
       ) : (
         <div className="space-y-8">
           {[...projectsByOrg.entries()].map(([organizationId, orgProjects]) => (
