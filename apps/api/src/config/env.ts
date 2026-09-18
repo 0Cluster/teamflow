@@ -9,7 +9,12 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().positive().default(5000),
 
   FRONTEND_URL: z.string().url().default("http://localhost:5173"),
-  MONGODB_URI: z.string().min(1, "MONGODB_URI is required"),
+  MONGODB_URI: z
+    .string()
+    .regex(
+      /^mongodb(\+srv)?:\/\//,
+      "MONGODB_URI must start with mongodb:// or mongodb+srv://",
+    ),
 
   JWT_ACCESS_SECRET: z
     .string()

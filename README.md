@@ -20,7 +20,7 @@ teamflow/
 ## Prerequisites
 
 - Node.js 20+, npm 10+
-- MongoDB (local or Atlas)
+- MongoDB: local instance or a free MongoDB Atlas cluster
 
 ## Setup
 
@@ -29,6 +29,17 @@ npm install
 cp apps/api/.env.example apps/api/.env   # fill in secrets (min 32 chars)
 cp apps/web/.env.example apps/web/.env   # optional; defaults target localhost
 ```
+
+### MongoDB Atlas instead of localhost
+
+1. Atlas console → create a free cluster → **Database Access** → add a
+   user + password.
+2. **Network Access** → allow your IP (or `0.0.0.0/0` for hosted APIs —
+   prefer the host's static IP / VPC peering when available).
+3. **Connect** → Drivers → copy the `mongodb+srv://` string and set it as
+   `MONGODB_URI` in `apps/api/.env` (keep the `/teamflow` database path).
+4. Start the API (`npm run dev:api`) — `MongoDB connected` confirms it.
+   A malformed URI fails fast at boot with a clear message.
 
 ## Scripts (repo root)
 
