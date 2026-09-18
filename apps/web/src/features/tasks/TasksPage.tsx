@@ -33,7 +33,7 @@ const columns: {
   },
 ];
 
-const VISIBLE_TASKS_PER_COLUMN = 5;
+const VISIBLE_TASKS_PER_COLUMN = 3;
 
 export function TasksPage() {
   const { organizationId, projectId } = useParams<{
