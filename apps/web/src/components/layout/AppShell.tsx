@@ -2,7 +2,7 @@ import type { PropsWithChildren } from "react";
 
 import { Sidebar } from "./Sidebar.js";
 import { Topbar } from "./Topbar.js";
-import { useRealtime } from "../hooks/use-realtime.js";
+import { useRealtime } from "../../hooks/use-realtime.js";
 
 export function AppShell({ children }: PropsWithChildren) {
   useRealtime();
