@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { listTaskActivity } from "./activity.api.js";
@@ -48,6 +49,8 @@ interface ActivityTimelineProps {
   emptyText: string;
 }
 
+const VISIBLE_ACTIVITY_LIMIT = 6;
+
 export function ActivityTimeline({
   title,
   description,
@@ -56,6 +59,12 @@ export function ActivityTimeline({
   activities,
   emptyText,
 }: ActivityTimelineProps) {
+  const [expanded, setExpanded] = useState(false);
+
+  const visibleActivities = expanded
+    ? activities
+    : activities.slice(0, VISIBLE_ACTIVITY_LIMIT);
+
   return (
     <section className="rounded-xl border border-slate-800 bg-slate-900/60 p-6">
       <div className="mb-6">
@@ -82,17 +91,31 @@ export function ActivityTimeline({
           </div>
         )}
 
-      {activities.length > 0 && (
+      {visibleActivities.length > 0 && (
         <div className="relative">
           <div className="absolute bottom-2 left-[7px] top-2 w-px bg-slate-800" />
 
           <div className="space-y-6">
-            {activities.map((activity) => (
+            {visibleActivities.map((activity) => (
               <ActivityItem key={activity.id} activity={activity} />
             ))}
           </div>
         </div>
       )}
+
+      {!isLoading &&
+        !isError &&
+        activities.length > VISIBLE_ACTIVITY_LIMIT && (
+          <button
+            type="button"
+            onClick={() => setExpanded((value) => !value)}
+            className="mt-6 w-full rounded-lg border border-slate-700 px-4 py-2.5 text-sm font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
+          >
+            {expanded
+              ? "Show less"
+              : `Show all ${activities.length} activities`}
+          </button>
+        )}
     </section>
   );
 }
