@@ -49,7 +49,7 @@ interface ActivityTimelineProps {
   emptyText: string;
 }
 
-const VISIBLE_ACTIVITY_LIMIT = 6;
+const VISIBLE_ACTIVITY_LIMIT = 5;
 
 export function ActivityTimeline({
   title,

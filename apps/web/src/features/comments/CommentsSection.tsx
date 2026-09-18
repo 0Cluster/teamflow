@@ -33,6 +33,7 @@ export function CommentsSection({
     useState<string | null>(null);
   const [editingContent, setEditingContent] =
     useState("");
+  const [expanded, setExpanded] = useState(false);
 
   const commentsQuery = useQuery({
     queryKey: [
@@ -187,6 +188,10 @@ export function CommentsSection({
 
   const comments = commentsQuery.data ?? [];
 
+  const visibleComments = expanded
+    ? comments
+    : comments.slice(0, VISIBLE_COMMENTS_LIMIT);
+
   return (
     <section className="rounded-xl border border-slate-800 bg-slate-900/60 p-6">
       <div className="mb-6">
@@ -267,7 +272,7 @@ export function CommentsSection({
         )}
 
       <div className="space-y-5">
-        {comments.map((comment) => {
+        {visibleComments.map((comment) => {
           const isAuthor =
             comment.authorId === user?.id;
 
@@ -397,9 +402,23 @@ export function CommentsSection({
           );
         })}
       </div>
+
+      {comments.length > VISIBLE_COMMENTS_LIMIT && (
+        <button
+          type="button"
+          onClick={() => setExpanded((value) => !value)}
+          className="mt-6 w-full rounded-lg border border-slate-700 px-4 py-2.5 text-sm font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
+        >
+          {expanded
+            ? "Show less"
+            : `Show all ${comments.length} comments`}
+        </button>
+      )}
     </section>
   );
 }
+
+const VISIBLE_COMMENTS_LIMIT = 5;
 
 function formatCommentDate(
   value: string,
