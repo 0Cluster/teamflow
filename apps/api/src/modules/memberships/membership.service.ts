@@ -1,12 +1,23 @@
 import { AppError } from "../../common/errors/app-error.js";
 import { findUserByEmail, findUserById } from "../users/user.repository.js";
 import {
+  notifyMemberAdded,
+  notifyMemberRoleChanged,
+  notifyOwnershipTransferred,
+} from "../notifications/notification.service.js";
+import {
+  emitMemberAdded,
+  emitMemberRemoved,
+  emitMemberUpdated,
+} from "../../socket/socket.events.js";
+import {
   createMembership,
   deleteMembership,
   findMembership,
   updateMembershipRole,
 } from "./membership.repository.js";
 import { updateOrganizationOwner } from "../organizations/organization.repository.js";
+import { findOrganizationById } from "../organizations/organization.repository.js";
 import type {
   AddMemberInput,
   UpdateMemberRoleInput,
@@ -17,6 +28,7 @@ type MembershipRole = "OWNER" | "ADMIN" | "MEMBER" | "VIEWER";
 export async function addMemberToOrganization(
   organizationId: string,
   input: AddMemberInput,
+  actorId: string,
 ) {
   const user = await findUserByEmail(input.email);
 
@@ -40,13 +52,26 @@ export async function addMemberToOrganization(
     role: input.role,
   });
 
-  return {
+  const member = {
     userId: user.id,
     name: user.name,
     email: user.email,
     role: membership.role,
     joinedAt: membership.createdAt,
   };
+
+  const organization = await findOrganizationById(organizationId);
+
+  await notifyMemberAdded({
+    userId: user.id,
+    organizationId,
+    orgName: organization?.name ?? "your organization",
+    actorId,
+  });
+
+  emitMemberAdded(organizationId, member);
+
+  return member;
 }
 
 export async function changeMemberRole(
@@ -139,22 +164,49 @@ export async function changeMemberRole(
 
     await updateOrganizationOwner(organizationId, targetUserId);
 
-    return {
+    const member = {
       userId: targetUser.id,
       name: targetUser.name,
       email: targetUser.email,
       role: "OWNER" as const,
     };
+
+    const organization = await findOrganizationById(organizationId);
+
+    await notifyOwnershipTransferred({
+      userId: targetUserId,
+      organizationId,
+      orgName: organization?.name ?? "your organization",
+      actorId: actorUserId,
+    });
+
+    emitMemberUpdated(organizationId, member);
+
+    return member;
   }
 
   await updateMembershipRole(organizationId, targetUserId, newRole);
 
-  return {
+  const member = {
     userId: targetUser.id,
     name: targetUser.name,
     email: targetUser.email,
     role: newRole,
   };
+
+  const organization = await findOrganizationById(organizationId);
+
+  await notifyMemberRoleChanged({
+    userId: targetUserId,
+    organizationId,
+    orgName: organization?.name ?? "your organization",
+    actorId: actorUserId,
+    role: newRole,
+  });
+
+  emitMemberUpdated(organizationId, member);
+
+  return member;
 }
 
 export async function removeMemberFromOrganization(
@@ -209,4 +261,8 @@ export async function removeMemberFromOrganization(
   }
 
   await deleteMembership(organizationId, targetUserId);
+
+  emitMemberRemoved(organizationId, {
+    userId: targetUserId,
+  });
 }

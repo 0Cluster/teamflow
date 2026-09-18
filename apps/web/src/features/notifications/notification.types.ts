@@ -1,5 +1,10 @@
 export type NotificationType =
-  "TASK_ASSIGNED" | "TASK_STATUS_CHANGED" | "COMMENT_CREATED";
+  | "TASK_ASSIGNED"
+  | "TASK_STATUS_CHANGED"
+  | "COMMENT_CREATED"
+  | "MEMBER_ADDED"
+  | "MEMBER_ROLE_CHANGED"
+  | "OWNERSHIP_TRANSFERRED";
 
 export interface NotificationActor {
   id: string;

@@ -101,6 +101,7 @@ export async function addMember(
   const member = await addMemberToOrganization(
     organizationId,
     result.data,
+    req.user.id,
   );
 
   res.status(201).json({

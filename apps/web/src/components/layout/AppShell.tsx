@@ -2,8 +2,11 @@ import type { PropsWithChildren } from "react";
 
 import { Sidebar } from "./Sidebar.js";
 import { Topbar } from "./Topbar.js";
+import { useRealtime } from "../hooks/use-realtime.js";
 
 export function AppShell({ children }: PropsWithChildren) {
+  useRealtime();
+
   return (
     <div className="flex min-h-screen bg-slate-950 text-slate-100">
       <Sidebar />

@@ -29,6 +29,15 @@ function getNotificationIcon(type: Notification["type"]): string {
     case "COMMENT_CREATED":
       return "💬";
 
+    case "MEMBER_ADDED":
+      return "+";
+
+    case "MEMBER_ROLE_CHANGED":
+      return "⇄";
+
+    case "OWNERSHIP_TRANSFERRED":
+      return "★";
+
     default:
       return "•";
   }

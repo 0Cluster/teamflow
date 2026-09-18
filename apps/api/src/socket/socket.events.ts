@@ -29,7 +29,7 @@ function emitToRooms(
 ): void {
   const socketServer = getSocketServer();
 
-  if (!socketServer) {
+  if (!socketServer || rooms.length === 0) {
     return;
   }
 
@@ -75,7 +75,7 @@ export function emitTaskUpdated(
 export function emitTaskDeleted(
   organizationId: string,
   projectId: string,
-  task: unknown,
+  taskId: string,
 ): void {
   emitToRooms(
     [
@@ -83,7 +83,7 @@ export function emitTaskDeleted(
       `project:${projectId}`,
     ],
     "task:deleted",
-    task,
+    { taskId },
   );
 }
 
@@ -151,5 +151,38 @@ export function emitNotification(
     [`user:${userId}`],
     "notification:new",
     notification,
+  );
+}
+
+export function emitMemberAdded(
+  organizationId: string,
+  membership: unknown,
+): void {
+  emitToRooms(
+    [`organization:${organizationId}`],
+    "member:added",
+    membership,
+  );
+}
+
+export function emitMemberUpdated(
+  organizationId: string,
+  membership: unknown,
+): void {
+  emitToRooms(
+    [`organization:${organizationId}`],
+    "member:updated",
+    membership,
+  );
+}
+
+export function emitMemberRemoved(
+  organizationId: string,
+  membership: unknown,
+): void {
+  emitToRooms(
+    [`organization:${organizationId}`],
+    "member:removed",
+    membership,
   );
 }
