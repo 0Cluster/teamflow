@@ -1,0 +1,414 @@
+import { useState, type FormEvent } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link, useParams } from "react-router-dom";
+
+import { getOrganization } from "./organization.api.js";
+import {
+  addMember,
+  listMembers,
+  removeMember,
+  updateMemberRole,
+} from "./membership.api.js";
+import type {
+  MembershipRole,
+  OrganizationMember,
+} from "./membership.types.js";
+
+const roles: MembershipRole[] = [
+  "ADMIN",
+  "MEMBER",
+  "VIEWER",
+];
+
+export function OrganizationDetailPage() {
+  const { organizationId } = useParams<{
+    organizationId: string;
+  }>();
+
+  const queryClient = useQueryClient();
+
+  const [email, setEmail] = useState("");
+  const [role, setRole] =
+    useState<MembershipRole>("MEMBER");
+  const [error, setError] = useState("");
+
+  const organizationQuery = useQuery({
+    queryKey: ["organizations", organizationId],
+    queryFn: () => getOrganization(organizationId!),
+    enabled: Boolean(organizationId),
+  });
+
+  const membersQuery = useQuery({
+    queryKey: ["organizations", organizationId, "members"],
+    queryFn: () => listMembers(organizationId!),
+    enabled: Boolean(organizationId),
+  });
+
+  const addMemberMutation = useMutation({
+    mutationFn: () =>
+      addMember(organizationId!, {
+        email: email.trim(),
+        role,
+      }),
+    onSuccess: async () => {
+      setEmail("");
+      setRole("MEMBER");
+      setError("");
+
+      await queryClient.invalidateQueries({
+        queryKey: [
+          "organizations",
+          organizationId,
+          "members",
+        ],
+      });
+    },
+    onError: () => {
+      setError("Failed to add member.");
+    },
+  });
+
+  const updateRoleMutation = useMutation({
+    mutationFn: ({
+      userId,
+      role,
+    }: {
+      userId: string;
+      role: MembershipRole;
+    }) =>
+      updateMemberRole(
+        organizationId!,
+        userId,
+        { role },
+      ),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: [
+          "organizations",
+          organizationId,
+          "members",
+        ],
+      });
+    },
+  });
+
+  const removeMemberMutation = useMutation({
+    mutationFn: (userId: string) =>
+      removeMember(organizationId!, userId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: [
+          "organizations",
+          organizationId,
+          "members",
+        ],
+      });
+    },
+  });
+
+  function handleAddMember(
+    event: FormEvent<HTMLFormElement>,
+  ) {
+    event.preventDefault();
+
+    if (!email.trim()) {
+      setError("Email is required.");
+      return;
+    }
+
+    setError("");
+    addMemberMutation.mutate();
+  }
+
+  function handleRoleChange(
+    member: OrganizationMember,
+    newRole: MembershipRole,
+  ) {
+    if (member.role === "OWNER") {
+      return;
+    }
+
+    updateRoleMutation.mutate({
+      userId: member.userId,
+      role: newRole,
+    });
+  }
+
+  function handleRemove(member: OrganizationMember) {
+    if (member.role === "OWNER") {
+      return;
+    }
+
+    if (
+      !window.confirm(
+        `Remove ${member.name} from this organization?`,
+      )
+    ) {
+      return;
+    }
+
+    removeMemberMutation.mutate(member.userId);
+  }
+
+  if (!organizationId) {
+    return (
+      <div className="text-red-400">
+        Invalid organization ID.
+      </div>
+    );
+  }
+
+  if (organizationQuery.isLoading) {
+    return (
+      <div className="text-slate-400">
+        Loading organization...
+      </div>
+    );
+  }
+
+  if (organizationQuery.isError) {
+    return (
+      <div className="rounded-xl border border-red-900 bg-red-950/40 p-6 text-red-300">
+        Failed to load organization.
+      </div>
+    );
+  }
+
+  const organization = organizationQuery.data;
+if (!organization) {
+  return <div>Organization not found.</div>;
+}
+
+  return (
+<div className="mx-auto max-w-7xl">
+  <div className="mb-6">
+    <Link
+      to="/organizations"
+      className="text-sm text-slate-500 hover:text-slate-300"
+    >
+      ← Organizations
+    </Link>
+  </div>
+
+  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <div className="min-w-0">
+      <h1 className="text-2xl font-bold text-white">
+        {organization.name}
+      </h1>
+
+      <p className="mt-1 mb-4 break-all text-sm text-slate-500">
+        @{organization.slug}
+      </p>
+    </div>
+
+<div className="flex w-fit shrink-0 flex-wrap gap-2">
+  <Link
+    to={`/organizations/${organizationId}/projects`}
+    className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500"
+  >
+    View projects
+  </Link>
+
+  <Link
+    to={`/organizations/${organizationId}/labels`}
+    className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-300 transition hover:bg-slate-800 hover:text-white"
+  >
+    Manage labels
+  </Link>
+</div>
+  </div>
+      <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+        <section className="rounded-xl border border-slate-800 bg-slate-900">
+          <div className="border-b border-slate-800 p-5">
+            <h2 className="text-lg font-semibold text-white">
+              Members
+            </h2>
+
+            <p className="mt-1 text-sm text-slate-500">
+              People who belong to this organization.
+            </p>
+          </div>
+
+          {membersQuery.isLoading && (
+            <div className="p-5 text-sm text-slate-400">
+              Loading members...
+            </div>
+          )}
+
+          {membersQuery.isError && (
+            <div className="p-5 text-sm text-red-400">
+              Failed to load members.
+            </div>
+          )}
+
+          <div className="divide-y divide-slate-800">
+            {membersQuery.data?.map((member) => (
+              <MemberRow
+                key={member.userId}
+                member={member}
+                onRoleChange={handleRoleChange}
+                onRemove={handleRemove}
+                updating={
+                  updateRoleMutation.isPending
+                }
+                removing={
+                  removeMemberMutation.isPending
+                }
+              />
+            ))}
+          </div>
+        </section>
+
+        <section className="h-fit rounded-xl border border-slate-800 bg-slate-900 p-6">
+          <h2 className="text-lg font-semibold text-white">
+            Add member
+          </h2>
+
+          <p className="mt-1 text-sm text-slate-500">
+            Add an existing TeamFlow user by email.
+          </p>
+
+          <form
+            onSubmit={handleAddMember}
+            className="mt-6 space-y-4"
+          >
+            <div>
+              <label
+                htmlFor="member-email"
+                className="mb-1.5 block text-sm font-medium text-slate-300"
+              >
+                Email
+              </label>
+
+              <input
+                id="member-email"
+                type="email"
+                value={email}
+                onChange={(event) =>
+                  setEmail(event.target.value)
+                }
+                placeholder="user@example.com"
+                className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-indigo-500"
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="member-role"
+                className="mb-1.5 block text-sm font-medium text-slate-300"
+              >
+                Role
+              </label>
+
+              <select
+                id="member-role"
+                value={role}
+                onChange={(event) =>
+                  setRole(
+                    event.target.value as MembershipRole,
+                  )
+                }
+                className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-white outline-none focus:border-indigo-500"
+              >
+                {roles.map((memberRole) => (
+                  <option
+                    key={memberRole}
+                    value={memberRole}
+                  >
+                    {memberRole}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {error && (
+              <p className="text-sm text-red-400">
+                {error}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              disabled={addMemberMutation.isPending}
+              className="w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {addMemberMutation.isPending
+                ? "Adding..."
+                : "Add member"}
+            </button>
+          </form>
+        </section>
+      </div>
+    </div>
+  );
+}
+
+interface MemberRowProps {
+  member: OrganizationMember;
+  onRoleChange: (
+    member: OrganizationMember,
+    role: MembershipRole,
+  ) => void;
+  onRemove: (member: OrganizationMember) => void;
+  updating: boolean;
+  removing: boolean;
+}
+
+function MemberRow({
+  member,
+  onRoleChange,
+  onRemove,
+  updating,
+  removing,
+}: MemberRowProps) {
+  return (
+    <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+      <div className="min-w-0">
+        <p className="font-medium text-white">
+          {member.name}
+        </p>
+
+        <p className="mt-1 truncate text-sm text-slate-500">
+          {member.email}
+        </p>
+      </div>
+
+      <div className="flex items-center gap-2">
+        {member.role === "OWNER" ? (
+          <span className="rounded-lg bg-slate-800 px-3 py-2 text-xs font-medium text-slate-300">
+            OWNER
+          </span>
+        ) : (
+          <>
+            <select
+              value={member.role}
+              disabled={updating || removing}
+              onChange={(event) =>
+                onRoleChange(
+                  member,
+                  event.target.value as MembershipRole,
+                )
+              }
+              className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-300 outline-none focus:border-indigo-500"
+            >
+              {roles.map((role) => (
+                <option key={role} value={role}>
+                  {role}
+                </option>
+              ))}
+            </select>
+
+            <button
+              type="button"
+              disabled={removing}
+              onClick={() => onRemove(member)}
+              className="rounded-lg border border-red-900 px-3 py-2 text-xs font-medium text-red-400 transition hover:bg-red-950 disabled:opacity-50"
+            >
+              Remove
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}

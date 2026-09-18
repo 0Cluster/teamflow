@@ -1,0 +1,15 @@
+{
+  "name": "@teamflow/shared",
+  "version": "1.0.0",
+  "description": "Shared transport-level contracts for the TeamFlow API and web client",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "types": "./src/index.ts",
+  "files": ["src"],
+  "license": "ISC"
+}
