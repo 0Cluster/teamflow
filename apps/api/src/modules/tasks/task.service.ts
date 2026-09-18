@@ -13,6 +13,7 @@ import {
 import type { TaskQueryInput } from "./task.schema.js";
 import { findLabelById } from "../labels/label.repository.js";
 import { findLabelsByIds } from "../labels/label.repository.js";
+import { findUserById } from "../users/user.repository.js";
 import { logActivity } from "../activity/activity.service.js";
 import { findMembership } from "../memberships/membership.repository.js";
 import { findMembershipsByUser } from "../memberships/membership.repository.js";
@@ -373,6 +374,18 @@ export async function updateTaskForProject(
     input.assigneeId !== undefined &&
     input.assigneeId !== (existingTask.assigneeId?.toString() ?? null)
   ) {
+    const previousAssigneeId =
+      existingTask.assigneeId?.toString() ?? null;
+
+    const [previousAssignee, nextAssignee] = await Promise.all([
+      previousAssigneeId !== null
+        ? findUserById(previousAssigneeId)
+        : null,
+      input.assigneeId !== null
+        ? findUserById(input.assigneeId)
+        : null,
+    ]);
+
     await logActivity({
       organizationId,
       projectId,
@@ -380,8 +393,14 @@ export async function updateTaskForProject(
       actorId: userId,
       type: input.assigneeId === null ? "TASK_UNASSIGNED" : "TASK_ASSIGNED",
       metadata: {
-        from: existingTask.assigneeId?.toString() ?? null,
+        from: previousAssigneeId,
         to: input.assigneeId,
+        ...(previousAssignee?.name !== undefined
+          ? { fromName: previousAssignee.name }
+          : {}),
+        ...(nextAssignee?.name !== undefined
+          ? { toName: nextAssignee.name }
+          : {}),
       },
     });
 

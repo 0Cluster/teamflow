@@ -132,49 +132,84 @@ function ActivityItem({ activity }: ActivityItemProps) {
 }
 
 function getActivityMessage(activity: Activity): string {
+  const metadata = activity.metadata as Record<string, unknown>;
   const taskRef =
     activity.task != null
       ? ` (${activity.task.title})`
       : "";
 
   const memberName = getMemberName(activity);
+  const taskName = taskSubject(activity);
 
   switch (activity.type) {
     case "TASK_CREATED":
-      return "created this task";
+      return `created task ${taskName}`;
 
-    case "TASK_UPDATED":
-      return "updated this task";
+    case "TASK_UPDATED": {
+      const fields = updatedFields(metadata);
 
-    case "TASK_STATUS_CHANGED":
-      return `moved this task${taskRef}`;
+      return fields !== null
+        ? `updated ${taskName} (${fields})`
+        : `updated ${taskName}`;
+    }
 
-    case "TASK_ASSIGNED":
-      return "assigned this task";
+    case "TASK_STATUS_CHANGED": {
+      const from = metaString(metadata, "from");
+      const to = metaString(metadata, "to");
 
-    case "TASK_UNASSIGNED":
-      return "unassigned this task";
+      if (from !== null && to !== null) {
+        return `moved ${taskName} from ${formatActivityType(from)} to ${formatActivityType(to)}`;
+      }
+
+      return `moved ${taskName}${taskRef}`;
+    }
+
+    case "TASK_ASSIGNED": {
+      const toName = metaString(metadata, "toName");
+
+      return toName !== null
+        ? `assigned ${taskName} to ${toName}`
+        : `assigned ${taskName}`;
+    }
+
+    case "TASK_UNASSIGNED": {
+      const fromName = metaString(metadata, "fromName");
+
+      return fromName !== null
+        ? `unassigned ${taskName} from ${fromName}`
+        : `unassigned ${taskName}`;
+    }
 
     case "TASK_DELETED":
-      return "deleted this task";
+      return `deleted ${taskName}`;
 
     case "COMMENT_CREATED":
-      return "added a comment";
+      return `added a comment${taskRef}`;
 
     case "COMMENT_UPDATED":
-      return "updated a comment";
+      return `updated a comment${taskRef}`;
 
     case "COMMENT_DELETED":
-      return "deleted a comment";
+      return `deleted a comment${taskRef}`;
 
-    case "PROJECT_CREATED":
-      return "created a project";
+    case "PROJECT_CREATED": {
+      const name = metaString(metadata, "name");
+
+      return name !== null
+        ? `created project "${name}"`
+        : "created a project";
+    }
 
     case "PROJECT_UPDATED":
-      return "updated a project";
+      return "updated this project";
 
-    case "PROJECT_DELETED":
-      return "deleted a project";
+    case "PROJECT_DELETED": {
+      const name = metaString(metadata, "name");
+
+      return name !== null
+        ? `deleted project "${name}"`
+        : "deleted a project";
+    }
 
     case "MEMBER_ADDED":
       return memberName !== null
@@ -182,15 +217,9 @@ function getActivityMessage(activity: Activity): string {
         : "added a member";
 
     case "MEMBER_ROLE_CHANGED":
-      return memberName !== null
-        ? `changed ${memberName}'s role`
-        : "changed a member's role";
+      return roleChangeMessage(memberName, metadata);
 
     case "MEMBER_REMOVED": {
-      const metadata = activity.metadata as {
-        selfLeave?: unknown;
-      };
-
       if (metadata.selfLeave === true) {
         return "has left the organization";
       }
@@ -205,18 +234,133 @@ function getActivityMessage(activity: Activity): string {
         ? `transferred ownership to ${memberName}`
         : "transferred ownership";
 
-    case "LABEL_CREATED":
-      return "created a label";
+    case "LABEL_CREATED": {
+      const name = metaString(metadata, "name");
 
-    case "LABEL_UPDATED":
-      return "updated a label";
+      return name !== null
+        ? `created label "${name}"`
+        : "created a label";
+    }
 
-    case "LABEL_DELETED":
-      return "deleted a label";
+    case "LABEL_UPDATED": {
+      const name = metaString(metadata, "name");
+
+      return name !== null
+        ? `updated label "${name}"`
+        : "updated a label";
+    }
+
+    case "LABEL_DELETED": {
+      const name = metaString(metadata, "name");
+
+      return name !== null
+        ? `deleted label "${name}"`
+        : "deleted a label";
+    }
 
     default:
       return formatActivityType(activity.type);
   }
+}
+
+function metaString(
+  metadata: Record<string, unknown>,
+  key: string,
+): string | null {
+  const value = metadata[key];
+
+  return typeof value === "string" && value.length > 0
+    ? value
+    : null;
+}
+
+/*
+ * "Fix bug" (API-7) when refs are populated, otherwise the
+ * denormalized title from metadata, otherwise a generic noun.
+ */
+function taskSubject(activity: Activity): string {
+  if (activity.task != null) {
+    const identifier =
+      activity.project != null
+        ? `${activity.project.key}-${activity.task.number}`
+        : `#${activity.task.number}`;
+
+    return `"${activity.task.title}" (${identifier})`;
+  }
+
+  const metadata = activity.metadata as Record<string, unknown>;
+  const title = metaString(metadata, "title");
+
+  if (title !== null) {
+    return `"${title}"`;
+  }
+
+  return "this task";
+}
+
+const FIELD_LABELS: Record<string, string> = {
+  title: "title",
+  description: "description",
+  status: "status",
+  priority: "priority",
+  assigneeId: "assignee",
+  dueDate: "due date",
+  labelIds: "labels",
+};
+
+function updatedFields(
+  metadata: Record<string, unknown>,
+): string | null {
+  const fields = metadata.fields;
+
+  if (!Array.isArray(fields) || fields.length === 0) {
+    return null;
+  }
+
+  const labels = fields.map((field) =>
+    typeof field === "string" && field in FIELD_LABELS
+      ? FIELD_LABELS[field]
+      : typeof field === "string"
+        ? field
+        : "field",
+  );
+
+  return [...new Set(labels)].join(", ");
+}
+
+const ROLE_RANK: Record<string, number> = {
+  VIEWER: 1,
+  MEMBER: 2,
+  ADMIN: 3,
+  OWNER: 4,
+};
+
+function roleChangeMessage(
+  memberName: string | null,
+  metadata: Record<string, unknown>,
+): string {
+  const previousRole = metaString(metadata, "previousRole");
+  const role = metaString(metadata, "role");
+  const who = memberName ?? "a member";
+
+  if (
+    previousRole !== null &&
+    role !== null &&
+    previousRole in ROLE_RANK &&
+    role in ROLE_RANK &&
+    ROLE_RANK[previousRole] !== ROLE_RANK[role]
+  ) {
+    const verb =
+      (ROLE_RANK[role] as number) > (ROLE_RANK[previousRole] as number)
+        ? "promoted"
+        : "demoted";
+
+    return `${verb} ${who} to ${role}`;
+  }
+
+  return memberName !== null
+    ? `changed ${memberName}'s role`
+    : "changed a member's role";
 }
 
 function getMemberName(activity: Activity): string | null {
@@ -230,7 +374,7 @@ function getMemberName(activity: Activity): string | null {
     : null;
 }
 
-function formatActivityType(type: Activity["type"]): string {
+function formatActivityType(type: string): string {
   return type
     .toLowerCase()
     .split("_")

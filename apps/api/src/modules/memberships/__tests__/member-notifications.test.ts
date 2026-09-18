@@ -129,7 +129,11 @@ describe("membership notifications", () => {
     expect(logActivity).toHaveBeenCalledWith(
       expect.objectContaining({
         type: "MEMBER_ROLE_CHANGED",
-        metadata: expect.objectContaining({ memberName: "T" }),
+        metadata: expect.objectContaining({
+          memberName: "T",
+          previousRole: "MEMBER",
+          role: "ADMIN",
+        }),
       }),
     );
   });

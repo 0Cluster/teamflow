@@ -233,6 +233,7 @@ export async function changeMemberRole(
     metadata: {
       userId: targetUserId,
       memberName: targetUser.name,
+      previousRole: targetMembership.role,
       role: newRole,
     },
   });
