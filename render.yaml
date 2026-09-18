@@ -1,0 +1,46 @@
+# TeamFlow Render blueprint: API web service + static web site.
+# Fill the `sync: false` values in the Render dashboard on first deploy.
+
+services:
+  - type: web
+    name: teamflow-api
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build --workspace api
+    startCommand: npm start --workspace api
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_ACCESS_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      # Deployed web URL (no trailing slash). The API boots a warning
+      # if this still points at localhost in production.
+      - key: FRONTEND_URL
+        sync: false
+      # Split-domain hosting (separate Render hosts): the refresh cookie
+      # needs SameSite=None over HTTPS.
+      - key: COOKIE_SAMESITE
+        value: none
+      # Upstash REST Redis (optional but recommended: shared rate limits,
+      # project cache, and future socket fan-out).
+      - key: UPSTASH_REDIS_REST_URL
+        sync: false
+      - key: UPSTASH_REDIS_REST_TOKEN
+        sync: false
+
+  - type: web
+    name: teamflow-web
+    runtime: static
+    buildCommand: npm ci && npm run build --workspace web
+    staticPublishPath: apps/web/dist
+    envVars:
+      # Baked in at build time: must be the deployed API URL + /api/v1.
+      - key: VITE_API_URL
+        sync: false
+      - key: VITE_SOCKET_URL
+        sync: false

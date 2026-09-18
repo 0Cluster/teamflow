@@ -110,32 +110,44 @@ removed without updating the docs.
 
 ## Redis (optional)
 
-`REDIS_URL` enables three things; everything degrades gracefully without it:
+Two backends, one active at a time (Upstash wins when both are set):
 
-- **Rate limiting** — fixed-window Redis counters shared across instances
-  (memory sliding-window fallback otherwise).
-- **Caching** — `GET /projects` cached per user (60s TTL) with explicit
+- **Upstash REST** (`UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN`,
+  both required) — recommended for hosting: stateless HTTPS, no
+  connections to manage. Covers rate limiting and caching.
+- **Native Redis** (`REDIS_URL`, `redis://` or TLS `rediss://`) — local
+  development, plus the only backend that supports Socket.IO fan-out
+  across instances.
+
+Everything degrades gracefully without either: in-memory rate limits,
+pass-through caches, single-process sockets. MongoDB stays the source
+of truth.
+
+- `GET /projects` is cached per user (60s TTL) with explicit
   invalidation on every project/membership/organization write.
-- **Socket.IO scaling** — the Redis adapter attaches automatically so rooms
-  and events fan out across instances; single-process pub/sub otherwise.
-
-MongoDB stays the source of truth; run
-`REDIS_URL=redis://localhost:6379 npx vitest run redis.integration`
-for the live integration suite.
+- `GET /health` reports `redis: disabled|connected|unavailable` plus
+  `redisBackend: "upstash"|"native"|null`.
+- Live suites: `REDIS_URL=redis://localhost:6379 npx vitest run
+  redis.integration`, and with Upstash vars exported,
+  `npx vitest run upstash.integration`.
 
 ### Upstash (managed Redis)
 
-1. Upstash console → your database → **Endpoints** — copy the Redis
-   endpoint URL (it looks like
-   `rediss://default:<token>@<endpoint>.upstash.io:6379`).
-2. Paste it as-is into `apps/api/.env` as `REDIS_URL` (TLS on the
-   `rediss://` scheme is negotiated automatically — no extra config).
-3. Restart the API and confirm with:
-   `curl localhost:5000/health` → `"redis": "connected"`.
-   `"disabled"` means no `REDIS_URL` is set; `"unavailable"` means it
-   is set but unreachable — the API keeps running on memory fallbacks.
-4. No code changes are needed for the socket adapter either: with
-   `REDIS_URL` set it attaches automatically for multi-instance rooms.
+Two ways to use Upstash — pick per need:
+
+- **REST (recommended for Render/serverless):** Upstash console →
+  **REST API** → copy the URL and token into `UPSTASH_REDIS_REST_URL`
+  and `UPSTASH_REDIS_REST_TOKEN`. Covers rate limiting and caching over
+  stateless HTTPS; no connections to manage.
+- **Native endpoint (multi-instance sockets):** Upstash console →
+  **Endpoints** → the `rediss://default:<token>@<endpoint>:6379` URL as
+  `REDIS_URL` (TLS negotiated automatically). Required for Socket.IO
+  fan-out across instances, since the adapter needs RESP pub/sub.
+
+Restart the API and confirm with `curl localhost:5000/health` →
+`"redis": "connected"` plus `"redisBackend": "upstash"` (Upstash wins
+when both are set). `"unavailable"` means configured-but-unreachable —
+the API keeps running on memory fallbacks.
 
 ## Deployment checklist
 
@@ -148,6 +160,8 @@ for the live integration suite.
   hosting (e.g. Vercel + Render) needs `COOKIE_SAMESITE=none` over HTTPS.
 - Web: `npm run build --workspace web` → static `apps/web/dist`.
   `VITE_API_URL`/`VITE_SOCKET_URL` bake in at build time — rebuild to change.
+- One-command hosting: `render.yaml` at the repo root provisions the API
+  service + static site (set the `sync: false` values in the dashboard).
 - Optional: `REDIS_URL` (rate limits, cache, socket fan-out).
 - Verify: `GET /health` → healthy (+ redis state), `/api/docs` for the API.
 - Never commit `.env`; `.env.example` files are tracked as templates.

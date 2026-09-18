@@ -1,6 +1,4 @@
-import type { Redis as RedisClient } from "ioredis";
-
-import { getRedisClient } from "../../database/redis.js";
+import { getCommandSource, type CommandSource } from "../../database/backends.js";
 
 export interface RateLimitCount {
   failures: number;
@@ -62,7 +60,7 @@ export class MemoryRateLimitStore implements RateLimitStore {
  */
 export class RedisRateLimitStore implements RateLimitStore {
   constructor(
-    private readonly getClient: () => RedisClient | null,
+    private readonly getCommands: () => CommandSource | null,
     private readonly fallback: RateLimitStore = new MemoryRateLimitStore(),
   ) {}
 
@@ -70,17 +68,17 @@ export class RedisRateLimitStore implements RateLimitStore {
     key: string,
     windowMs: number,
   ): Promise<RateLimitCount> {
-    const client = this.getClient();
+    const commands = this.getCommands();
 
-    if (!client) {
+    if (!commands) {
       return this.fallback.countFailures(key, windowMs);
     }
 
     try {
       const namespaced = this.namespaced(key, windowMs);
       const [countRaw, ttl] = await Promise.all([
-        client.get(namespaced),
-        client.pttl(namespaced),
+        commands.get(namespaced),
+        commands.pttl(namespaced),
       ]);
 
       return {
@@ -96,19 +94,19 @@ export class RedisRateLimitStore implements RateLimitStore {
     key: string,
     windowMs: number,
   ): Promise<void> {
-    const client = this.getClient();
+    const commands = this.getCommands();
 
-    if (!client) {
+    if (!commands) {
       await this.fallback.recordFailure(key, windowMs);
       return;
     }
 
     try {
       const namespaced = this.namespaced(key, windowMs);
-      const count = await client.incr(namespaced);
+      const count = await commands.incr(namespaced);
 
       if (count === 1) {
-        await client.pexpire(namespaced, windowMs);
+        await commands.pexpire(namespaced, windowMs);
       }
     } catch {
       await this.fallback.recordFailure(key, windowMs);
@@ -130,7 +128,7 @@ let sharedStore: RateLimitStore | null = null;
 
 export function getRateLimitStore(): RateLimitStore {
   if (!sharedStore) {
-    sharedStore = new RedisRateLimitStore(getRedisClient);
+    sharedStore = new RedisRateLimitStore(getCommandSource);
   }
 
   return sharedStore;

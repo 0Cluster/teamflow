@@ -1,10 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getRedisClient } from "../../../database/redis.js";
+import { getUpstashClient } from "../../../database/upstash.js";
 import { cacheDel, cacheGet, cacheSet } from "../cache.js";
 
 vi.mock("../../../database/redis.js", () => ({
   getRedisClient: vi.fn(),
+}));
+
+vi.mock("../../../database/upstash.js", () => ({
+  getUpstashClient: vi.fn(),
 }));
 
 function fakeClient() {
@@ -81,6 +86,49 @@ describe("cache helpers", () => {
     vi.mocked(getRedisClient).mockReturnValue(client as never);
 
     await client.set("k", "not-json{{{", "EX", 60);
+
+    expect(await cacheGet("k")).toBeNull();
+  });
+
+  it("round-trips through an Upstash-shaped client", async () => {
+    const data = new Map<string, unknown>();
+    const restClient = {
+      async get(key: string) {
+        // @upstash/redis auto-deserializes stored JSON.
+        const raw = data.get(key);
+        if (raw === undefined) {
+          return null;
+        }
+        try {
+          return JSON.parse(raw as string);
+        } catch {
+          return raw;
+        }
+      },
+      async set(
+        key: string,
+        value: string,
+        options: { ex: number },
+      ) {
+        void options;
+        data.set(key, value);
+        return "OK";
+      },
+      async del(...keys: string[]) {
+        for (const key of keys) {
+          data.delete(key);
+        }
+        return keys.length;
+      },
+    };
+
+    vi.mocked(getUpstashClient).mockReturnValue(restClient as never);
+
+    await cacheSet("k", { projects: [1, 2] }, 60);
+
+    expect(await cacheGet("k")).toEqual({ projects: [1, 2] });
+
+    await cacheDel(["k"]);
 
     expect(await cacheGet("k")).toBeNull();
   });

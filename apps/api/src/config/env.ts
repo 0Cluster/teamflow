@@ -40,7 +40,19 @@ const envSchema = z.object({
     .optional(),
 
   COOKIE_SAMESITE: z.enum(["lax", "strict", "none"]).default("lax"),
-});
+
+  UPSTASH_REDIS_REST_URL: z.string().url().optional(),
+
+  UPSTASH_REDIS_REST_TOKEN: z.string().min(1).optional(),
+}).refine(
+  (data) =>
+    Boolean(data.UPSTASH_REDIS_REST_URL) ===
+    Boolean(data.UPSTASH_REDIS_REST_TOKEN),
+  {
+    message:
+      "Set both UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN, or neither",
+  },
+);
 
 const result = envSchema.safeParse(process.env);
 

@@ -95,7 +95,12 @@ describe("OpenAPI docs", () => {
     const healthResponse = await request(app).get("/health");
 
     expect(healthResponse.status).toBe(200);
-    expect(healthResponse.body.data.redis).toBe("disabled");
+    // Without a booted server nothing is connected; the suite only
+    // pins the contract, whatever this environment configures.
+    expect(["disabled", "unavailable"]).toContain(
+      healthResponse.body.data.redis,
+    );
+    expect(healthResponse.body.data.redisBackend).toBeNull();
 
     const guardedResponse = await request(app).get("/api/v1/projects");
 

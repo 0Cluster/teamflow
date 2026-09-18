@@ -224,6 +224,14 @@ export const openApiSpec = {
                             "Redis layer state: disabled (no REDIS_URL), " +
                             "connected, or configured-but-unreachable.",
                         },
+                        redisBackend: {
+                          type: "string",
+                          nullable: true,
+                          enum: ["upstash", "native"],
+                          description:
+                            "Active Redis backend (Upstash REST wins when " +
+                            "both are configured), null when none.",
+                        },
                       },
                     },
                   },

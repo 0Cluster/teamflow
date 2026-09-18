@@ -19,10 +19,11 @@ import { errorMiddleware } from "./common/middleware/error.middleware.js";
 import { rateLimit } from "./common/middleware/rate-limit.middleware.js";
 import { authRouter } from "./modules/auth/auth.routes.js";
 import { env } from "./config/env.js";
+import { isRedisAvailable } from "./database/redis.js";
 import {
-  isRedisAvailable,
-  isRedisConfigured,
-} from "./database/redis.js";
+  getActiveBackendName,
+  isAnyRedisConfigured,
+} from "./database/backends.js";
 
 const app = express();
 
@@ -79,15 +80,18 @@ app.use("/api/v1", membershipRouter);
 app.use("/api/v1", projectRouter);
 
 app.get("/health", (_req, res) => {
+  const backend = getActiveBackendName();
+
   res.status(200).json({
     success: true,
     data: {
       status: "healthy",
-      redis: !isRedisConfigured()
+      redis: !isAnyRedisConfigured()
         ? "disabled"
-        : isRedisAvailable()
+        : backend !== null || isRedisAvailable()
           ? "connected"
           : "unavailable",
+      redisBackend: backend,
     },
   });
 });

@@ -133,4 +133,35 @@ describe("RedisRateLimitStore with a fake client", () => {
       failures: 1,
     });
   });
+
+  it("works over an Upstash-shaped command source", async () => {
+    const data = new Map<string, number>();
+
+    const upstashLike = {
+      async incr(key: string) {
+        const count = (data.get(key) ?? 0) + 1;
+        data.set(key, count);
+        return count;
+      },
+      // @upstash/redis auto-deserializes: numbers come back as numbers.
+      async get(key: string) {
+        return data.has(key) ? (data.get(key) as number) : null;
+      },
+      async pttl() {
+        return 60_000;
+      },
+      async pexpire() {
+        return 1;
+      },
+    };
+
+    const store = new RedisRateLimitStore(() => upstashLike);
+
+    await store.recordFailure("k", 60_000);
+    await store.recordFailure("k", 60_000);
+
+    expect(await store.countFailures("k", 60_000)).toMatchObject({
+      failures: 2,
+    });
+  });
 });
