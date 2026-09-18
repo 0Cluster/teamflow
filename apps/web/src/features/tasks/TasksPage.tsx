@@ -33,6 +33,8 @@ const columns: {
   },
 ];
 
+const VISIBLE_TASKS_PER_COLUMN = 5;
+
 export function TasksPage() {
   const { organizationId, projectId } = useParams<{
     organizationId: string;
@@ -56,6 +58,19 @@ export function TasksPage() {
   const [assigneeFilter, setAssigneeFilter] = useState("");
   const [priorityFilter, setPriorityFilter] = useState<TaskPriority | "">("");
   const [labelFilter, setLabelFilter] = useState("");
+
+  // Collapsible create form + columns
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [expandedColumns, setExpandedColumns] = useState<
+    Partial<Record<TaskStatus, boolean>>
+  >({});
+
+  function toggleColumn(status: TaskStatus) {
+    setExpandedColumns((current) => ({
+      ...current,
+      [status]: !current[status],
+    }));
+  }
 
   /*
    * Load organization labels.
@@ -257,16 +272,27 @@ export function TasksPage() {
           ← Project
         </Link>
 
-        <div className="mt-2">
-          <h1 className="text-2xl font-bold text-white">Tasks</h1>
+        <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold text-white">Tasks</h1>
 
-          <p className="mt-0 text-sm text-slate-500">
-            Manage tasks and track project progress.
-          </p>
+            <p className="mt-0 text-sm text-slate-500">
+              Manage tasks and track project progress.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setShowCreateForm((value) => !value)}
+            className="rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-500"
+          >
+            {showCreateForm ? "Hide form" : "+ New task"}
+          </button>
         </div>
       </div>
 
       {/* Create Task */}
+      {showCreateForm && (
       <div className="mb-4 rounded-xl border border-slate-800 bg-slate-900 p-5">
         <h2 className="mb-4 text-lg font-semibold text-white">Create task</h2>
 
@@ -416,6 +442,7 @@ export function TasksPage() {
           </div>
         </form>
       </div>
+      )}
 
       {/* Filters */}
       <div className="mb-4 rounded-xl border border-slate-800 bg-slate-900 p-4">
@@ -536,6 +563,11 @@ export function TasksPage() {
                 return a.number - b.number;
               });
 
+            const expanded = expandedColumns[column.status] ?? false;
+            const visibleTasks = expanded
+              ? columnTasks
+              : columnTasks.slice(0, VISIBLE_TASKS_PER_COLUMN);
+
             return (
               <div
                 key={column.status}
@@ -554,7 +586,7 @@ export function TasksPage() {
                 </div>
 
                 <div className="space-y-1">
-                  {columnTasks.map((task) => (
+                  {visibleTasks.map((task) => (
                     <TaskCard
                       key={task.id}
                       task={task}
@@ -569,6 +601,18 @@ export function TasksPage() {
                     <div className="rounded-lg border border-dashed border-slate-800 p-5 text-center text-xs text-slate-600">
                       Drop tasks here
                     </div>
+                  )}
+
+                  {columnTasks.length > VISIBLE_TASKS_PER_COLUMN && (
+                    <button
+                      type="button"
+                      onClick={() => toggleColumn(column.status)}
+                      className="w-full rounded-lg border border-slate-700 px-3 py-2 text-xs font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
+                    >
+                      {expanded
+                        ? "Show less"
+                        : `Show all ${columnTasks.length}`}
+                    </button>
                   )}
                 </div>
               </div>
