@@ -8,6 +8,7 @@ import { listLabels } from "../labels/label.api.js";
 import { listMembers } from "../organizations/membership.api.js";
 
 import { deleteTask, getTask, updateTask } from "./task.api.js";
+import { useLiveTasks } from "../../hooks/use-live-tasks.js";
 
 import type {
   TaskPriority,
@@ -48,6 +49,17 @@ export function TaskDetailPage() {
 
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+
+  useLiveTasks({
+    organizationId,
+    projectId,
+    taskId,
+    onTaskDeleted: () => {
+      void navigate(
+        `/organizations/${organizationId}/projects/${projectId}/tasks`,
+      );
+    },
+  });
 
   const [isEditing, setIsEditing] = useState(false);
 

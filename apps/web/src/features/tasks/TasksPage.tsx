@@ -9,6 +9,7 @@ import { listMembers } from "../organizations/membership.api.js";
 import { createTask, listTasks, updateTask } from "./task.api.js";
 
 import type { Task, TaskPriority, TaskStatus } from "./task.types.js";
+import { useLiveTasks } from "../../hooks/use-live-tasks.js";
 
 const columns: {
   status: TaskStatus;
@@ -39,6 +40,8 @@ export function TasksPage() {
   }>();
 
   const queryClient = useQueryClient();
+
+  useLiveTasks({ organizationId, projectId });
 
   // Create task state
   const [title, setTitle] = useState("");
