@@ -488,16 +488,11 @@ export function TaskDetailPage() {
               projectId={projectId}
               taskId={taskId}
             />
-
-            <ActivityFeed
-              organizationId={organizationId}
-              projectId={projectId}
-              taskId={taskId}
-            />
           </div>
 
-          {/* Details sidebar */}
-          <div className="rounded-xl border border-slate-800 bg-slate-900 p-6 lg:sticky lg:top-6">
+          {/* Sidebar: details + activity share one column width */}
+          <div className="space-y-5 lg:sticky lg:top-6">
+          <div className="rounded-xl border border-slate-800 bg-slate-900 p-6">
             <h2 className="text-lg font-semibold text-white">Details</h2>
 
             <div className="mt-4 space-y-4">
@@ -582,6 +577,13 @@ export function TaskDetailPage() {
                 </p>
               </div>
             </div>
+          </div>
+
+          <ActivityFeed
+            organizationId={organizationId}
+            projectId={projectId}
+            taskId={taskId}
+          />
           </div>
         </div>
       )}

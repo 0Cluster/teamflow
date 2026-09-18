@@ -61,7 +61,7 @@ export function Topbar() {
           <button
             type="button"
             onClick={() => void logout()}
-            className="rounded-lg border border-slate-700 px-3 py-2 text-sm font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
+            className="rounded-lg border border-red-900 px-3 py-2 text-sm font-medium text-red-400 transition hover:bg-red-950/40"
           >
             Logout
           </button>

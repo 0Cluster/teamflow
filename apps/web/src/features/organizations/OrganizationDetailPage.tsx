@@ -24,6 +24,22 @@ const roles: MembershipRole[] = [
   "VIEWER",
 ];
 
+/*
+ * Semantic role colors: owners amber, admins green,
+ * everyone else neutral.
+ */
+function roleBadgeClasses(role: MembershipRole): string {
+  if (role === "OWNER") {
+    return "bg-amber-500/10 text-amber-400";
+  }
+
+  if (role === "ADMIN") {
+    return "bg-emerald-500/10 text-emerald-400";
+  }
+
+  return "bg-slate-800 text-slate-300";
+}
+
 export function OrganizationDetailPage() {
   const { organizationId } = useParams<{
     organizationId: string;
@@ -544,7 +560,7 @@ function AddMemberForm({
               event.target.value as MembershipRole,
             )
           }
-          className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-white outline-none focus:border-indigo-500"
+          className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-white outline-none focus:border-emerald-500"
         >
           {roles.map((memberRole) => (
             <option
@@ -566,7 +582,7 @@ function AddMemberForm({
       <button
         type="submit"
         disabled={isPending}
-        className="w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+        className="w-full rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {isPending
           ? "Adding..."
@@ -625,7 +641,12 @@ function MemberRow({
 
       <div className="flex items-center gap-2">
         {member.role === "OWNER" ? (
-          <span className="rounded-lg bg-slate-800 px-3 py-2 text-xs font-medium text-slate-300">
+          <span
+            className={[
+              "rounded-lg px-3 py-2 text-xs font-medium",
+              roleBadgeClasses(member.role),
+            ].join(" ")}
+          >
             OWNER
           </span>
         ) : isSelf ? (
@@ -633,7 +654,7 @@ function MemberRow({
             type="button"
             disabled={leaving}
             onClick={onLeave}
-            className="rounded-lg border border-slate-700 px-3 py-2 text-xs font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white disabled:opacity-50"
+            className="rounded-lg border border-amber-900 px-3 py-2 text-xs font-medium text-amber-400 transition hover:bg-amber-950/40 disabled:opacity-50"
           >
             {leaving ? "Leaving..." : "Leave"}
           </button>
@@ -648,7 +669,7 @@ function MemberRow({
                   event.target.value as MembershipRole,
                 )
               }
-              className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-300 outline-none focus:border-indigo-500"
+              className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-300 outline-none focus:border-emerald-500"
             >
               {roles.map((role) => (
                 <option key={role} value={role}>
@@ -679,7 +700,12 @@ function MemberRow({
             )}
           </>
         ) : (
-          <span className="rounded-lg bg-slate-800 px-3 py-2 text-xs font-medium text-slate-300">
+          <span
+            className={[
+              "rounded-lg px-3 py-2 text-xs font-medium",
+              roleBadgeClasses(member.role),
+            ].join(" ")}
+          >
             {member.role}
           </span>
         )}
