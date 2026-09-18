@@ -74,6 +74,14 @@ feeds, Kanban/comments, project lists, member lists, "my tasks".
 
 `/`, `/organizations`, `/organizations/:id`, `/organizations/:id/projects`, `/projects`, `/tasks`, `/organizations/:id/projects/:projectId/tasks[/:taskId]`, `/notifications`, `/login`, `/register`.
 
+## API docs
+
+With the API running: interactive Swagger UI at `http://localhost:5000/api/docs`,
+raw OpenAPI 3.0 JSON at `http://localhost:5000/api/docs.json`. The spec is
+hand-written in `apps/api/src/docs/openapi.ts` and pinned by
+`src/docs/__tests__/openapi.test.ts`, which fails if a route is added or
+removed without updating the docs.
+
 ## Deployment notes
 
 - API: `npm run build --workspace api && npm start --workspace api` (needs `MONGODB_URI`, `JWT_*_SECRET`, `FRONTEND_URL`).

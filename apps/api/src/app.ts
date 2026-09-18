@@ -2,6 +2,9 @@ import cors from "cors";
 import express from "express";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
+import swaggerUi from "swagger-ui-express";
+
+import { openApiSpec } from "./docs/openapi.js";
 
 import { notificationRouter } from "./modules/notifications/notification.routes.js";
 import { commentRouter } from "./modules/comments/comment.routes.js";
@@ -28,6 +31,18 @@ app.use(
 
 app.use(express.json());
 app.use(cookieParser());
+
+app.get("/api/docs.json", (_req, res) => {
+  res.status(200).json(openApiSpec);
+});
+
+app.use(
+  "/api/docs",
+  swaggerUi.serve,
+  swaggerUi.setup(openApiSpec, {
+    customSiteTitle: "TeamFlow API docs",
+  }),
+);
 
 app.use("/api/v1/auth", authRouter);
 app.use("/api/v1", notificationRouter);
