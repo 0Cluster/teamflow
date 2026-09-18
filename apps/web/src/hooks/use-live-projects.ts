@@ -1,17 +1,14 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { socket } from "../lib/socket.js";
 import { useOrganizationRoom } from "./use-live-activity.js";
 
 export function useJoinOrganizations(organizationIds: string[]) {
-  const idsRef = useRef<string[]>([]);
-  idsRef.current = organizationIds;
-
   const cacheKey = [...organizationIds].sort().join(",");
 
   useEffect(() => {
-    const ids = idsRef.current;
+    const ids = cacheKey.split(",").filter(Boolean);
 
     if (ids.length === 0) {
       return;
@@ -36,7 +33,6 @@ export function useJoinOrganizations(organizationIds: string[]) {
         socket.emit("organization:leave", id);
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cacheKey]);
 }
 

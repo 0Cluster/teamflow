@@ -53,7 +53,10 @@ export function useLiveTasks({
 
   const queryClient = useQueryClient();
   const deletedRef = useRef(onTaskDeleted);
-  deletedRef.current = onTaskDeleted;
+
+  useEffect(() => {
+    deletedRef.current = onTaskDeleted;
+  });
 
   useEffect(() => {
     if (!organizationId || !projectId) {

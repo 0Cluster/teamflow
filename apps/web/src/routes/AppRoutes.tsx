@@ -8,6 +8,7 @@ import {
 
 import { AppShell } from "../components/layout/AppShell.js";
 import { ProtectedRoute } from "./ProtectedRoute.js";
+import { RouteErrorBoundary } from "../app/ErrorBoundary.js";
 
 const LoginPage = lazy(() =>
   import("../features/auth/LoginPage.js").then((module) => ({
@@ -104,8 +105,9 @@ function RouteFallback() {
 export function AppRoutes() {
   return (
     <BrowserRouter>
-      <Suspense fallback={<RouteFallback />}>
-        <Routes>
+      <RouteErrorBoundary>
+        <Suspense fallback={<RouteFallback />}>
+          <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
 
@@ -211,6 +213,7 @@ export function AppRoutes() {
           />
         </Routes>
       </Suspense>
+      </RouteErrorBoundary>
     </BrowserRouter>
   );
 }

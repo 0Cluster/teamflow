@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { socket } from "../lib/socket.js";
@@ -51,13 +51,14 @@ export function useLiveActivity(
   useOrganizationRoom(organizationId);
 
   const queryClient = useQueryClient();
-  const keyRef = useRef(queryKey);
-  keyRef.current = queryKey;
+  const cacheKey = JSON.stringify(queryKey);
 
   useEffect(() => {
+    const key = JSON.parse(cacheKey) as unknown[];
+
     const handleActivity = () => {
       void queryClient.invalidateQueries({
-        queryKey: keyRef.current,
+        queryKey: key,
       });
     };
 
@@ -66,5 +67,5 @@ export function useLiveActivity(
     return () => {
       socket.off("activity:new", handleActivity);
     };
-  }, [queryClient, organizationId]);
+  }, [queryClient, organizationId, cacheKey]);
 }
