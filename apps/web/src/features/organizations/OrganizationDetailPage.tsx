@@ -7,6 +7,7 @@ import { OrganizationActivityFeed } from "../activity/OrganizationActivityFeed.j
 import { useAuth } from "../auth/use-auth.js";
 import {
   addMember,
+  leaveOrganization,
   listMembers,
   removeMember,
   updateMemberRole,
@@ -112,6 +113,22 @@ export function OrganizationDetailPage() {
     },
   });
 
+  const leaveMutation = useMutation({
+    mutationFn: () => leaveOrganization(organizationId!),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["organizations"],
+      });
+
+      await navigate("/organizations");
+    },
+    onError: () => {
+      setTransferError(
+        "Failed to leave. Owners must transfer ownership first.",
+      );
+    },
+  });
+
   const deleteMutation = useMutation({
     mutationFn: () => deleteOrganization(organizationId!),
     onSuccess: async () => {
@@ -134,6 +151,40 @@ export function OrganizationDetailPage() {
     (member) => member.userId === user?.id,
   );
   const isOwner = myMembership?.role === "OWNER";
+  const canManageMembers =
+    myMembership?.role === "OWNER" ||
+    myMembership?.role === "ADMIN";
+
+  /*
+   * Mirrors the backend rules in membership.service.ts:
+   * owners manage everyone except the owner, admins manage
+   * members/viewers only, nobody else manages anyone.
+   */
+  function canManageMember(target: OrganizationMember): boolean {
+    if (myMembership?.role === "OWNER") {
+      return target.role !== "OWNER";
+    }
+
+    if (myMembership?.role === "ADMIN") {
+      return (
+        target.role === "MEMBER" || target.role === "VIEWER"
+      );
+    }
+
+    return false;
+  }
+
+  function handleLeave() {
+    if (
+      !window.confirm(
+        "Leave this organization? You will lose access to its projects and tasks.",
+      )
+    ) {
+      return;
+    }
+
+    leaveMutation.mutate();
+  }
 
   function handleDelete() {
     if (
@@ -323,99 +374,58 @@ if (!organization) {
               <MemberRow
                 key={member.userId}
                 member={member}
+                isSelf={member.userId === user?.id}
+                canManage={canManageMember(member)}
+                showTransfer={isOwner}
                 onRoleChange={handleRoleChange}
                 onRemove={handleRemove}
                 onTransferOwnership={handleTransferOwnership}
-                showTransfer={isOwner}
+                onLeave={handleLeave}
                 updating={
                   updateRoleMutation.isPending
                 }
                 removing={
                   removeMemberMutation.isPending
                 }
+                leaving={leaveMutation.isPending}
               />
             ))}
           </div>
         </section>
 
         <section className="h-fit rounded-xl border border-slate-800 bg-slate-900 p-6">
-          <h2 className="text-lg font-semibold text-white">
-            Add member
-          </h2>
+          {canManageMembers ? (
+            <>
+              <h2 className="text-lg font-semibold text-white">
+                Add member
+              </h2>
 
-          <p className="mt-1 text-sm text-slate-500">
-            Add an existing TeamFlow user by email.
-          </p>
-
-          <form
-            onSubmit={handleAddMember}
-            className="mt-6 space-y-4"
-          >
-            <div>
-              <label
-                htmlFor="member-email"
-                className="mb-1.5 block text-sm font-medium text-slate-300"
-              >
-                Email
-              </label>
-
-              <input
-                id="member-email"
-                type="email"
-                value={email}
-                onChange={(event) =>
-                  setEmail(event.target.value)
-                }
-                placeholder="user@example.com"
-                className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-indigo-500"
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="member-role"
-                className="mb-1.5 block text-sm font-medium text-slate-300"
-              >
-                Role
-              </label>
-
-              <select
-                id="member-role"
-                value={role}
-                onChange={(event) =>
-                  setRole(
-                    event.target.value as MembershipRole,
-                  )
-                }
-                className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-white outline-none focus:border-indigo-500"
-              >
-                {roles.map((memberRole) => (
-                  <option
-                    key={memberRole}
-                    value={memberRole}
-                  >
-                    {memberRole}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {error && (
-              <p className="text-sm text-red-400">
-                {error}
+              <p className="mt-1 text-sm text-slate-500">
+                Add an existing TeamFlow user by email.
               </p>
-            )}
 
-            <button
-              type="submit"
-              disabled={addMemberMutation.isPending}
-              className="w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {addMemberMutation.isPending
-                ? "Adding..."
-                : "Add member"}
-            </button>
-          </form>
+              <AddMemberForm
+                email={email}
+                setEmail={setEmail}
+                role={role}
+                setRole={setRole}
+                error={error}
+                onSubmit={handleAddMember}
+                isPending={addMemberMutation.isPending}
+              />
+            </>
+          ) : (
+            <>
+              <h2 className="text-lg font-semibold text-white">
+                Members
+              </h2>
+
+              <p className="mt-1 text-sm text-slate-500">
+                Only organization owners and admins can manage
+                members.
+              </p>
+            </>
+          )}
         </section>
       </div>
 
@@ -455,33 +465,138 @@ if (!organization) {
   );
 }
 
+interface AddMemberFormProps {
+  email: string;
+  setEmail: (value: string) => void;
+  role: MembershipRole;
+  setRole: (role: MembershipRole) => void;
+  error: string;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  isPending: boolean;
+}
+
+function AddMemberForm({
+  email,
+  setEmail,
+  role,
+  setRole,
+  error,
+  onSubmit,
+  isPending,
+}: AddMemberFormProps) {
+  return (
+    <form
+      onSubmit={onSubmit}
+      className="mt-6 space-y-4"
+    >
+      <div>
+        <label
+          htmlFor="member-email"
+          className="mb-1.5 block text-sm font-medium text-slate-300"
+        >
+          Email
+        </label>
+
+        <input
+          id="member-email"
+          type="email"
+          value={email}
+          onChange={(event) =>
+            setEmail(event.target.value)
+          }
+          placeholder="user@example.com"
+          className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-indigo-500"
+        />
+      </div>
+
+      <div>
+        <label
+          htmlFor="member-role"
+          className="mb-1.5 block text-sm font-medium text-slate-300"
+        >
+          Role
+        </label>
+
+        <select
+          id="member-role"
+          value={role}
+          onChange={(event) =>
+            setRole(
+              event.target.value as MembershipRole,
+            )
+          }
+          className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-white outline-none focus:border-indigo-500"
+        >
+          {roles.map((memberRole) => (
+            <option
+              key={memberRole}
+              value={memberRole}
+            >
+              {memberRole}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {error && (
+        <p className="text-sm text-red-400">
+          {error}
+        </p>
+      )}
+
+      <button
+        type="submit"
+        disabled={isPending}
+        className="w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {isPending
+          ? "Adding..."
+          : "Add member"}
+      </button>
+    </form>
+  );
+}
+
 interface MemberRowProps {
   member: OrganizationMember;
+  isSelf: boolean;
+  canManage: boolean;
   onRoleChange: (
     member: OrganizationMember,
     role: MembershipRole,
   ) => void;
   onRemove: (member: OrganizationMember) => void;
   onTransferOwnership: (member: OrganizationMember) => void;
+  onLeave: () => void;
   showTransfer: boolean;
   updating: boolean;
   removing: boolean;
+  leaving: boolean;
 }
 
 function MemberRow({
   member,
+  isSelf,
+  canManage,
   onRoleChange,
   onRemove,
   onTransferOwnership,
+  onLeave,
   showTransfer,
   updating,
   removing,
+  leaving,
 }: MemberRowProps) {
   return (
     <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
         <p className="font-medium text-white">
           {member.name}
+          {isSelf && (
+            <span className="ml-2 rounded-full bg-indigo-500/15 px-2 py-0.5 text-xs font-semibold text-indigo-400">
+              You
+            </span>
+          )}
         </p>
 
         <p className="mt-1 truncate text-sm text-slate-500">
@@ -494,7 +609,16 @@ function MemberRow({
           <span className="rounded-lg bg-slate-800 px-3 py-2 text-xs font-medium text-slate-300">
             OWNER
           </span>
-        ) : (
+        ) : isSelf ? (
+          <button
+            type="button"
+            disabled={leaving}
+            onClick={onLeave}
+            className="rounded-lg border border-slate-700 px-3 py-2 text-xs font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white disabled:opacity-50"
+          >
+            {leaving ? "Leaving..." : "Leave"}
+          </button>
+        ) : canManage ? (
           <>
             <select
               value={member.role}
@@ -535,6 +659,10 @@ function MemberRow({
               </button>
             )}
           </>
+        ) : (
+          <span className="rounded-lg bg-slate-800 px-3 py-2 text-xs font-medium text-slate-300">
+            {member.role}
+          </span>
         )}
       </div>
     </div>

@@ -21,6 +21,7 @@ export async function createTask(data: {
   description?: string;
   priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
   assigneeId?: string;
+  labelIds?: string[];
   createdBy: string;
   dueDate?: Date;
 }) {

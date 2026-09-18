@@ -93,6 +93,9 @@ export async function createTaskForProject(
       description: input.description ?? "",
       priority: input.priority,
       createdBy: userId,
+      ...(input.assigneeId !== undefined
+        ? { assigneeId: input.assigneeId }
+        : {}),
       ...(input.dueDate !== undefined ? { dueDate: input.dueDate } : {}),
       ...(input.labelIds !== undefined ? { labelIds: input.labelIds } : {}),
     });
@@ -108,6 +111,17 @@ export async function createTaskForProject(
         title: task.title,
       },
     });
+
+    if (input.assigneeId) {
+      await notifyTaskAssigned({
+        userId: input.assigneeId,
+        organizationId,
+        projectId,
+        taskId: task.id,
+        taskTitle: task.title,
+        actorId: userId,
+      });
+    }
     const createdTask = {
       id: task.id,
       projectId: task.projectId.toString(),

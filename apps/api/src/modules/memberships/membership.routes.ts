@@ -10,6 +10,7 @@ import {
   addMember,
   updateMemberRole,
   removeMember,
+  leaveOrganization,
 } from "./membership.controller.js";
 
 const router = Router();
@@ -20,6 +21,12 @@ router.get(
   "/organizations/:organizationId/members",
   requireOrganizationMember,
   listMembers,
+);
+
+router.post(
+  "/organizations/:organizationId/leave",
+  requireOrganizationMember,
+  leaveOrganization,
 );
 
 router.post(

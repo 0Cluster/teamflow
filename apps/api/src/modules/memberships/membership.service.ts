@@ -305,3 +305,46 @@ export async function removeMemberFromOrganization(
     userId: targetUserId,
   });
 }
+
+export async function leaveOrganizationForUser(
+  organizationId: string,
+  userId: string,
+): Promise<void> {
+  const membership = await findMembership(organizationId, userId);
+
+  if (!membership) {
+    throw new AppError(
+      404,
+      "MEMBER_NOT_FOUND",
+      "You are not a member of this organization",
+    );
+  }
+
+  /*
+   * The owner cannot leave.
+   * Ownership must be transferred first.
+   */
+  if (membership.role === "OWNER") {
+    throw new AppError(
+      400,
+      "OWNER_CANNOT_LEAVE",
+      "Transfer ownership before leaving the organization",
+    );
+  }
+
+  await deleteMembership(organizationId, userId);
+
+  await logActivity({
+    organizationId,
+    actorId: userId,
+    type: "MEMBER_REMOVED",
+    metadata: {
+      userId,
+      selfLeave: true,
+    },
+  });
+
+  emitMemberRemoved(organizationId, {
+    userId,
+  });
+}

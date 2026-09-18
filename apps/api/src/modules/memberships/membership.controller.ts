@@ -9,6 +9,7 @@ import {
   addMemberToOrganization,
   changeMemberRole,
   removeMemberFromOrganization,
+  leaveOrganizationForUser,
 } from "./membership.service.js";
 import {
   findMembershipsByOrganization,
@@ -215,6 +216,39 @@ export async function removeMember(
     success: true,
     data: {
       message: "Member removed successfully",
+    },
+  });
+}
+
+export async function leaveOrganization(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  if (!req.user) {
+    throw new AppError(
+      401,
+      "UNAUTHORIZED",
+      "Authentication required",
+    );
+  }
+
+  const organizationId =
+    req.params.organizationId;
+
+  if (typeof organizationId !== "string") {
+    throw new AppError(
+      400,
+      "INVALID_ORGANIZATION_ID",
+      "Organization ID must be a string",
+    );
+  }
+
+  await leaveOrganizationForUser(organizationId, req.user.id);
+
+  res.status(200).json({
+    success: true,
+    data: {
+      message: "You have left the organization",
     },
   });
 }

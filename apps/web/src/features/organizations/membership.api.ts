@@ -67,3 +67,13 @@ export async function removeMember(
 
   return response.data.data.message;
 }
+
+export async function leaveOrganization(
+  organizationId: string,
+): Promise<string> {
+  const response = await api.post<
+    ApiResponse<MessagePayload>
+  >(`/organizations/${organizationId}/leave`);
+
+  return response.data.data.message;
+}
