@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { listOrganizationActivity } from "./activity.api.js";
 import { ActivityTimeline } from "./ActivityFeed.js";
+import { useLiveActivity } from "../../hooks/use-live-activity.js";
 
 export function OrganizationActivityFeed({
   organizationId,
@@ -12,6 +13,11 @@ export function OrganizationActivityFeed({
     queryKey: ["organization-activity", organizationId],
     queryFn: () => listOrganizationActivity(organizationId),
   });
+
+  useLiveActivity(organizationId, [
+    "organization-activity",
+    organizationId,
+  ]);
 
   return (
     <ActivityTimeline

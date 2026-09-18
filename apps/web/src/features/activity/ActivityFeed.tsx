@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { listTaskActivity } from "./activity.api.js";
 import type { Activity } from "./activity.types.js";
+import { useLiveActivity } from "../../hooks/use-live-activity.js";
 
 interface ActivityFeedProps {
   organizationId: string;
@@ -18,6 +19,13 @@ export function ActivityFeed({
     queryKey: ["task-activity", organizationId, projectId, taskId],
     queryFn: () => listTaskActivity(organizationId, projectId, taskId),
   });
+
+  useLiveActivity(organizationId, [
+    "task-activity",
+    organizationId,
+    projectId,
+    taskId,
+  ]);
 
   return (
     <ActivityTimeline
