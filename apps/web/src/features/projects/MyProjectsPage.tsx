@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 
 import { listOrganizations } from "../organizations/organization.api.js";
 import { listMyProjects } from "./project.api.js";
+import { useLiveMyProjects } from "../../hooks/use-live-projects.js";
 
 export function MyProjectsPage() {
   const projectsQuery = useQuery({
@@ -14,6 +15,10 @@ export function MyProjectsPage() {
     queryKey: ["organizations"],
     queryFn: listOrganizations,
   });
+
+  useLiveMyProjects(
+    (organizationsQuery.data ?? []).map((org) => org.id),
+  );
 
   if (projectsQuery.isLoading) {
     return <div className="text-slate-400">Loading projects...</div>;

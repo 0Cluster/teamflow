@@ -4,11 +4,22 @@ import { useQuery } from "@tanstack/react-query";
 
 import { listMyTasks } from "./task.api.js";
 import type { TaskPriority, TaskStatus } from "./task.types.js";
+import { listOrganizations } from "../organizations/organization.api.js";
+import { useLiveMyTasks } from "../../hooks/use-live-tasks.js";
 
 export function MyTasksPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<TaskStatus | "">("");
   const [priorityFilter, setPriorityFilter] = useState<TaskPriority | "">("");
+
+  const organizationsQuery = useQuery({
+    queryKey: ["organizations"],
+    queryFn: listOrganizations,
+  });
+
+  useLiveMyTasks(
+    (organizationsQuery.data ?? []).map((org) => org.id),
+  );
 
   const tasksQuery = useQuery({
     queryKey: ["my-tasks", search, statusFilter, priorityFilter],

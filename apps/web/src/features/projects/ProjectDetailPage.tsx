@@ -7,6 +7,7 @@ import {
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { deleteProject, getProject } from "./project.api.js";
+import { listTasks } from "../tasks/task.api.js";
 import { listMembers } from "../organizations/membership.api.js";
 import { useAuth } from "../auth/use-auth.js";
 
@@ -34,6 +35,21 @@ export function ProjectDetailPage() {
     enabled: Boolean(organizationId),
   });
 
+  const tasksCountQuery = useQuery({
+    queryKey: [
+      "project-tasks",
+      organizationId,
+      projectId,
+      "count",
+    ],
+    queryFn: () =>
+      listTasks(organizationId!, projectId!, {
+        page: 1,
+        limit: 1,
+      }),
+    enabled: Boolean(organizationId && projectId),
+  });
+
   const deleteMutation = useMutation({
     mutationFn: () => deleteProject(organizationId!, projectId!),
     onSuccess: async () => {
@@ -45,6 +61,10 @@ export function ProjectDetailPage() {
 
       await queryClient.invalidateQueries({
         queryKey: ["my-projects"],
+      });
+
+      await queryClient.invalidateQueries({
+        queryKey: ["my-tasks"],
       });
 
       await navigate(`/organizations/${organizationId}/projects`);
@@ -153,7 +173,7 @@ export function ProjectDetailPage() {
           </p>
 
           <p className="mt-2 text-2xl font-bold text-white">
-            —
+            {tasksCountQuery.data?.pagination.total ?? "—"}
           </p>
         </div>
 
@@ -163,7 +183,7 @@ export function ProjectDetailPage() {
           </p>
 
           <p className="mt-2 text-2xl font-bold text-white">
-            —
+            {membersQuery.data?.length ?? "—"}
           </p>
         </div>
 

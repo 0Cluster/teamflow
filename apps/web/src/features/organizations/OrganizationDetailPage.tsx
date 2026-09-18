@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { deleteOrganization, getOrganization } from "./organization.api.js";
 import { OrganizationActivityFeed } from "../activity/OrganizationActivityFeed.js";
+import { useLiveMembers } from "../../hooks/use-live-projects.js";
 import { useAuth } from "../auth/use-auth.js";
 import {
   addMember,
@@ -50,6 +51,8 @@ export function OrganizationDetailPage() {
     queryFn: () => listMembers(organizationId!),
     enabled: Boolean(organizationId),
   });
+
+  useLiveMembers(organizationId);
 
   const addMemberMutation = useMutation({
     mutationFn: () =>
@@ -120,6 +123,14 @@ export function OrganizationDetailPage() {
         queryKey: ["organizations"],
       });
 
+      await queryClient.invalidateQueries({
+        queryKey: ["my-projects"],
+      });
+
+      await queryClient.invalidateQueries({
+        queryKey: ["my-tasks"],
+      });
+
       await navigate("/organizations");
     },
     onError: () => {
@@ -136,6 +147,14 @@ export function OrganizationDetailPage() {
 
       await queryClient.invalidateQueries({
         queryKey: ["organizations"],
+      });
+
+      await queryClient.invalidateQueries({
+        queryKey: ["my-projects"],
+      });
+
+      await queryClient.invalidateQueries({
+        queryKey: ["my-tasks"],
       });
 
       await navigate("/organizations");

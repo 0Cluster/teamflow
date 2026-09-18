@@ -30,9 +30,12 @@ export function DashboardPage() {
   });
 
   const notificationsQuery = useQuery({
-    queryKey: ["notifications", { page: 1, limit: 1 }],
-    queryFn: () => listNotifications({ page: 1, limit: 1 }),
+    queryKey: ["notifications", { page: 1, limit: 5 }],
+    queryFn: () => listNotifications({ page: 1, limit: 5 }),
   });
+
+  const recentNotifications =
+    notificationsQuery.data?.notifications ?? [];
 
   return (
     <div className="mx-auto max-w-7xl">
@@ -72,30 +75,83 @@ export function DashboardPage() {
         />
       </div>
 
-      <div className="mt-6 rounded-xl border border-slate-800 bg-slate-900 p-6">
-        <h2 className="text-lg font-semibold text-white">Quick links</h2>
+      <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_360px]">
+        <div className="rounded-xl border border-slate-800 bg-slate-900 p-6">
+          <div className="flex items-center justify-between gap-4">
+            <h2 className="text-lg font-semibold text-white">
+              Recent notifications
+            </h2>
 
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Link
-            to="/projects"
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500"
-          >
-            View projects
-          </Link>
+            <Link
+              to="/notifications"
+              className="text-xs font-medium text-indigo-400 transition hover:text-indigo-300"
+            >
+              View all →
+            </Link>
+          </div>
 
-          <Link
-            to="/tasks"
-            className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-300 transition hover:bg-slate-800 hover:text-white"
-          >
-            View my tasks
-          </Link>
+          {notificationsQuery.isLoading && (
+            <p className="mt-4 text-sm text-slate-500">
+              Loading...
+            </p>
+          )}
 
-          <Link
-            to="/notifications"
-            className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-300 transition hover:bg-slate-800 hover:text-white"
-          >
-            View notifications
-          </Link>
+          {!notificationsQuery.isLoading &&
+            recentNotifications.length === 0 && (
+              <p className="mt-4 text-sm text-slate-500">
+                You&apos;re all caught up.
+              </p>
+            )}
+
+          <div className="mt-4 space-y-3">
+            {recentNotifications.map((notification) => (
+              <div
+                key={notification.id}
+                className="flex items-start gap-3"
+              >
+                {!notification.isRead && (
+                  <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-indigo-500" />
+                )}
+
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-white">
+                    {notification.title}
+                  </p>
+
+                  <p className="mt-0.5 line-clamp-1 text-xs text-slate-500">
+                    {notification.message}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="h-fit rounded-xl border border-slate-800 bg-slate-900 p-6">
+          <h2 className="text-lg font-semibold text-white">Quick links</h2>
+
+          <div className="mt-4 flex flex-col gap-2">
+            <Link
+              to="/projects"
+              className="rounded-lg bg-indigo-600 px-4 py-2 text-center text-sm font-semibold text-white transition hover:bg-indigo-500"
+            >
+              View projects
+            </Link>
+
+            <Link
+              to="/tasks"
+              className="rounded-lg border border-slate-700 px-4 py-2 text-center text-sm font-semibold text-slate-300 transition hover:bg-slate-800 hover:text-white"
+            >
+              View my tasks
+            </Link>
+
+            <Link
+              to="/notifications"
+              className="rounded-lg border border-slate-700 px-4 py-2 text-center text-sm font-semibold text-slate-300 transition hover:bg-slate-800 hover:text-white"
+            >
+              View notifications
+            </Link>
+          </div>
         </div>
       </div>
     </div>

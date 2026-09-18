@@ -2,6 +2,11 @@ import { AppError } from "../../common/errors/app-error.js";
 import { findMembershipsByUser } from "../memberships/membership.repository.js";
 import { deleteActivitiesByProject } from "../activity/activity.repository.js";
 import { logActivity } from "../activity/activity.service.js";
+import {
+  emitProjectCreated,
+  emitProjectDeleted,
+  emitProjectUpdated,
+} from "../../socket/socket.events.js";
 import { deleteCommentsByProject } from "../comments/comment.repository.js";
 import { deleteTasksByProject } from "../tasks/task.repository.js";
 import {
@@ -44,7 +49,7 @@ export async function createProjectForOrganization(
       },
     });
 
-    return {
+    const createdProject = {
       id: project.id,
       organizationId: project.organizationId.toString(),
       name: project.name,
@@ -54,6 +59,10 @@ export async function createProjectForOrganization(
       createdAt: project.createdAt,
       updatedAt: project.updatedAt,
     };
+
+    emitProjectCreated(organizationId, createdProject);
+
+    return createdProject;
   } catch (error: unknown) {
     if (
       error &&
@@ -170,7 +179,7 @@ export async function updateProjectForOrganization(
     throw new AppError(404, "PROJECT_NOT_FOUND", "Project not found");
   }
 
-  return {
+  const updatedProject = {
     id: project.id,
     organizationId: project.organizationId.toString(),
     name: project.name,
@@ -180,6 +189,10 @@ export async function updateProjectForOrganization(
     createdAt: project.createdAt,
     updatedAt: project.updatedAt,
   };
+
+  emitProjectUpdated(organizationId, updatedProject);
+
+  return updatedProject;
 }
 
 export async function deleteProjectForOrganization(
@@ -203,6 +216,8 @@ export async function deleteProjectForOrganization(
   ]);
 
   await deleteProject(organizationId, projectId);
+
+  emitProjectDeleted(organizationId, projectId);
 
   await logActivity({
     organizationId,

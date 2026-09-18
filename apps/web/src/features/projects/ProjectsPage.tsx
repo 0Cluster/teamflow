@@ -8,6 +8,7 @@ import {
 } from "./project.api.js";
 
 import type { CreateProjectInput } from "./project.types.js";
+import { useLiveProjects } from "../../hooks/use-live-projects.js";
 
 export function ProjectsPage() {
   const { organizationId } = useParams<{
@@ -15,6 +16,8 @@ export function ProjectsPage() {
   }>();
 
   const queryClient = useQueryClient();
+
+  useLiveProjects(organizationId);
 
   const {
     register,

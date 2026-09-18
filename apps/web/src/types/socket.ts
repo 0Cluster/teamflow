@@ -18,6 +18,10 @@ export interface ServerToClientEvents {
 
   "notification:new": (notification: unknown) => void;
 
+  "project:created": (project: unknown) => void;
+  "project:updated": (project: unknown) => void;
+  "project:deleted": (payload: unknown) => void;
+
   "activity:new": (activity: unknown) => void;
 
   "member:added": (membership: unknown) => void;

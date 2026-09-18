@@ -62,6 +62,14 @@ npm run build       # production builds for api + web
 
 Deleting a project cascades to its tasks, comments, and activity; deleting a task cascades to its comments and activity (a `TASK_DELETED` tombstone is kept).
 
+## Realtime
+
+Socket.io mirrors REST over org-scoped rooms (`organization:{id}`,
+membership-gated on join) plus per-user `user:{id}` rooms for
+notifications. Clients only invalidate react-query caches on events —
+REST refetches stay authoritative. Live today: notifications, activity
+feeds, Kanban/comments, project lists, member lists, "my tasks".
+
 ## Frontend routes
 
 `/`, `/organizations`, `/organizations/:id`, `/organizations/:id/projects`, `/projects`, `/tasks`, `/organizations/:id/projects/:projectId/tasks[/:taskId]`, `/notifications`, `/login`, `/register`.

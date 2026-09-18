@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { socket } from "../lib/socket.js";
 import { useOrganizationRoom } from "./use-live-activity.js";
+import { useJoinOrganizations } from "./use-live-projects.js";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -42,15 +43,6 @@ interface LiveTasksOptions {
   taskId?: string;
   onTaskDeleted?: (taskId: string) => void;
 }
-
-/*
- * Live-updates the Kanban board, task detail, and comment thread.
- *
- * All task/comment events fan out to `organization:{id}`, so one
- * room join covers everything; payloads are only used to scope
- * invalidations (and to detect our own task being deleted).
- * Authoritative state always comes from REST refetches.
- */
 export function useLiveTasks({
   organizationId,
   projectId,
@@ -155,4 +147,31 @@ export function useLiveTasks({
       socket.off("comment:deleted", handleCommentMutated);
     };
   }, [queryClient, organizationId, projectId, taskId]);
+}
+
+/*
+ * Live-updates the global "my tasks" list across every org room.
+ */
+export function useLiveMyTasks(organizationIds: string[]) {
+  useJoinOrganizations(organizationIds);
+
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const handleTask = () => {
+      void queryClient.invalidateQueries({
+        queryKey: ["my-tasks"],
+      });
+    };
+
+    socket.on("task:created", handleTask);
+    socket.on("task:updated", handleTask);
+    socket.on("task:deleted", handleTask);
+
+    return () => {
+      socket.off("task:created", handleTask);
+      socket.off("task:updated", handleTask);
+      socket.off("task:deleted", handleTask);
+    };
+  }, [queryClient]);
 }

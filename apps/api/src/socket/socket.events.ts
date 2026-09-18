@@ -87,6 +87,39 @@ export function emitTaskDeleted(
   );
 }
 
+export function emitProjectCreated(
+  organizationId: string,
+  project: unknown,
+): void {
+  emitToRooms(
+    [`organization:${organizationId}`],
+    "project:created",
+    project,
+  );
+}
+
+export function emitProjectUpdated(
+  organizationId: string,
+  project: unknown,
+): void {
+  emitToRooms(
+    [`organization:${organizationId}`],
+    "project:updated",
+    project,
+  );
+}
+
+export function emitProjectDeleted(
+  organizationId: string,
+  projectId: string,
+): void {
+  emitToRooms(
+    [`organization:${organizationId}`],
+    "project:deleted",
+    { projectId },
+  );
+}
+
 export function emitCommentCreated(
   organizationId: string,
   projectId: string,

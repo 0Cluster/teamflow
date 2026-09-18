@@ -50,8 +50,18 @@ export interface SocketActivity {
   createdAt: string;
 }
 
-export interface SocketNotification {
-  _id: string;
+export interface SocketProject {
+  id: string;
+  organizationId: string;
+  name: string;
+  key: string;
+  description?: string;
+  createdBy: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface SocketNotification {  _id: string;
   userId: string;
   organizationId: string;
   type: string;
@@ -70,6 +80,10 @@ export interface TaskDeletedPayload {
   taskId: string;
 }
 
+export interface ProjectDeletedPayload {
+  projectId: string;
+}
+
 export interface CommentDeletedPayload {
   commentId: string;
 }
@@ -80,6 +94,10 @@ export interface ServerToClientEvents {
   "task:created": (task: SocketTask) => void;
   "task:updated": (task: SocketTask) => void;
   "task:deleted": (payload: TaskDeletedPayload) => void;
+
+  "project:created": (project: SocketProject) => void;
+  "project:updated": (project: SocketProject) => void;
+  "project:deleted": (payload: ProjectDeletedPayload) => void;
 
   "comment:created": (comment: SocketComment) => void;
   "comment:updated": (comment: SocketComment) => void;
