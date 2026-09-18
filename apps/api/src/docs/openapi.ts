@@ -213,6 +213,17 @@ export const openApiSpec = {
                       type: "object",
                       properties: {
                         status: { type: "string", example: "healthy" },
+                        redis: {
+                          type: "string",
+                          enum: [
+                            "disabled",
+                            "connected",
+                            "unavailable",
+                          ],
+                          description:
+                            "Redis layer state: disabled (no REDIS_URL), " +
+                            "connected, or configured-but-unreachable.",
+                        },
                       },
                     },
                   },

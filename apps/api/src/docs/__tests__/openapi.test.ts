@@ -95,6 +95,7 @@ describe("OpenAPI docs", () => {
     const healthResponse = await request(app).get("/health");
 
     expect(healthResponse.status).toBe(200);
+    expect(healthResponse.body.data.redis).toBe("disabled");
 
     const guardedResponse = await request(app).get("/api/v1/projects");
 

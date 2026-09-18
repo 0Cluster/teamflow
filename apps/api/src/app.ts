@@ -19,6 +19,10 @@ import { errorMiddleware } from "./common/middleware/error.middleware.js";
 import { rateLimit } from "./common/middleware/rate-limit.middleware.js";
 import { authRouter } from "./modules/auth/auth.routes.js";
 import { env } from "./config/env.js";
+import {
+  isRedisAvailable,
+  isRedisConfigured,
+} from "./database/redis.js";
 
 const app = express();
 
@@ -79,6 +83,11 @@ app.get("/health", (_req, res) => {
     success: true,
     data: {
       status: "healthy",
+      redis: !isRedisConfigured()
+        ? "disabled"
+        : isRedisAvailable()
+          ? "connected"
+          : "unavailable",
     },
   });
 });

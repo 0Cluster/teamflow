@@ -111,6 +111,20 @@ MongoDB stays the source of truth; run
 `REDIS_URL=redis://localhost:6379 npx vitest run redis.integration`
 for the live integration suite.
 
+### Upstash (managed Redis)
+
+1. Upstash console → your database → **Endpoints** — copy the Redis
+   endpoint URL (it looks like
+   `rediss://default:<token>@<endpoint>.upstash.io:6379`).
+2. Paste it as-is into `apps/api/.env` as `REDIS_URL` (TLS on the
+   `rediss://` scheme is negotiated automatically — no extra config).
+3. Restart the API and confirm with:
+   `curl localhost:5000/health` → `"redis": "connected"`.
+   `"disabled"` means no `REDIS_URL` is set; `"unavailable"` means it
+   is set but unreachable — the API keeps running on memory fallbacks.
+4. No code changes are needed for the socket adapter either: with
+   `REDIS_URL` set it attaches automatically for multi-instance rooms.
+
 ## Deployment notes
 
 - API: `npm run build --workspace api && npm start --workspace api` (needs `MONGODB_URI`, `JWT_*_SECRET`, `FRONTEND_URL`).
