@@ -475,7 +475,6 @@ export function TaskDetailPage() {
         <div className="grid items-start gap-5 lg:grid-cols-3">
           {/* Main column */}
           <div className="space-y-5 lg:col-span-2">
-            <div className="grid items-start gap-5 md:grid-cols-2">
             <div className="rounded-xl border border-slate-800 bg-slate-900 p-6">
               <h2 className="text-lg font-semibold text-white">Description</h2>
 
@@ -484,7 +483,16 @@ export function TaskDetailPage() {
               </p>
             </div>
 
-            <div className="rounded-xl border border-slate-800 bg-slate-900 p-6">
+            <div className="grid items-start gap-5 md:grid-cols-5">
+            <div className="md:col-span-3">
+            <CommentsSection
+              organizationId={organizationId}
+              projectId={projectId}
+              taskId={taskId}
+            />
+            </div>
+
+            <div className="rounded-xl border border-slate-800 bg-slate-900 p-6 md:col-span-2">
               <h2 className="text-lg font-semibold text-white">Details</h2>
 
               <div className="mt-4 space-y-4">
@@ -571,12 +579,6 @@ export function TaskDetailPage() {
               </div>
             </div>
             </div>
-
-            <CommentsSection
-              organizationId={organizationId}
-              projectId={projectId}
-              taskId={taskId}
-            />
           </div>
 
           {/* Right rail: activity */}
