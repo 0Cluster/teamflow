@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { findMembership } from "../membership.repository.js";
 import { deleteMembership } from "../membership.repository.js";
+import { findUserById } from "../../users/user.repository.js";
 import { logActivity } from "../../activity/activity.service.js";
 import { emitMemberRemoved } from "../../../socket/socket.events.js";
 import { leaveOrganizationForUser } from "../membership.service.js";
@@ -47,9 +48,13 @@ beforeEach(() => {
 });
 
 describe("leaveOrganizationForUser", () => {
-  it("removes the membership and logs the leave", async () => {
+  it("removes the membership and logs the leave with a name", async () => {
     vi.mocked(findMembership).mockResolvedValue({
       role: "MEMBER",
+    } as never);
+    vi.mocked(findUserById).mockResolvedValue({
+      id: "user1",
+      name: "Leaver",
     } as never);
 
     await leaveOrganizationForUser("org1", "user1");
@@ -59,6 +64,10 @@ describe("leaveOrganizationForUser", () => {
       expect.objectContaining({
         type: "MEMBER_REMOVED",
         actorId: "user1",
+        metadata: expect.objectContaining({
+          memberName: "Leaver",
+          selfLeave: true,
+        }),
       }),
     );
     expect(emitMemberRemoved).toHaveBeenCalledWith("org1", {

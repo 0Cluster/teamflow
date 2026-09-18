@@ -102,6 +102,9 @@ interface ActivityItemProps {
 }
 
 function ActivityItem({ activity }: ActivityItemProps) {
+  const displayName =
+    activity.actor?.name ?? getMemberName(activity) ?? "Unknown user";
+
   return (
     <div className="relative flex gap-4">
       <div className="relative z-10 mt-1 h-4 w-4 shrink-0 rounded-full border-2 border-slate-700 bg-slate-950" />
@@ -109,7 +112,7 @@ function ActivityItem({ activity }: ActivityItemProps) {
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
           <span className="font-medium text-white">
-            {activity.actor?.name ?? "Unknown user"}
+            {displayName}
           </span>
 
           <span className="text-sm text-slate-400">
@@ -133,6 +136,8 @@ function getActivityMessage(activity: Activity): string {
     activity.task != null
       ? ` (${activity.task.title})`
       : "";
+
+  const memberName = getMemberName(activity);
 
   switch (activity.type) {
     case "TASK_CREATED":
@@ -172,16 +177,33 @@ function getActivityMessage(activity: Activity): string {
       return "deleted a project";
 
     case "MEMBER_ADDED":
-      return "added a member";
+      return memberName !== null
+        ? `added ${memberName} to the organization`
+        : "added a member";
 
     case "MEMBER_ROLE_CHANGED":
-      return "changed a member's role";
+      return memberName !== null
+        ? `changed ${memberName}'s role`
+        : "changed a member's role";
 
-    case "MEMBER_REMOVED":
-      return "removed a member";
+    case "MEMBER_REMOVED": {
+      const metadata = activity.metadata as {
+        selfLeave?: unknown;
+      };
+
+      if (metadata.selfLeave === true) {
+        return "has left the organization";
+      }
+
+      return memberName !== null
+        ? `removed ${memberName} from the organization`
+        : "removed a member";
+    }
 
     case "OWNERSHIP_TRANSFERRED":
-      return "transferred ownership";
+      return memberName !== null
+        ? `transferred ownership to ${memberName}`
+        : "transferred ownership";
 
     case "LABEL_CREATED":
       return "created a label";
@@ -195,6 +217,17 @@ function getActivityMessage(activity: Activity): string {
     default:
       return formatActivityType(activity.type);
   }
+}
+
+function getMemberName(activity: Activity): string | null {
+  const metadata = activity.metadata as {
+    memberName?: unknown;
+  };
+
+  return typeof metadata.memberName === "string" &&
+    metadata.memberName.length > 0
+    ? metadata.memberName
+    : null;
 }
 
 function formatActivityType(type: Activity["type"]): string {

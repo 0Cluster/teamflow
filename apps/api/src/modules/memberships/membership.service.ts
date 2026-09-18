@@ -76,6 +76,7 @@ export async function addMemberToOrganization(
     type: "MEMBER_ADDED",
     metadata: {
       userId: user.id,
+      memberName: user.name,
       role: membership.role,
     },
   });
@@ -197,6 +198,7 @@ export async function changeMemberRole(
       type: "OWNERSHIP_TRANSFERRED",
       metadata: {
         userId: targetUserId,
+        memberName: targetUser.name,
       },
     });
 
@@ -230,6 +232,7 @@ export async function changeMemberRole(
     type: "MEMBER_ROLE_CHANGED",
     metadata: {
       userId: targetUserId,
+      memberName: targetUser.name,
       role: newRole,
     },
   });
@@ -267,6 +270,8 @@ export async function removeMemberFromOrganization(
     );
   }
 
+  const targetUser = await findUserById(targetUserId);
+
   /*
    * ADMIN cannot remove another ADMIN.
    */
@@ -279,8 +284,8 @@ export async function removeMemberFromOrganization(
   }
 
   /*
-   * Prevent self-removal for now.
-   * We can implement "leave organization" separately.
+   * Self-removal goes through the leave flow instead,
+   * so accidental clicks can't lock anyone out.
    */
   if (targetUserId === actorUserId) {
     throw new AppError(
@@ -298,6 +303,9 @@ export async function removeMemberFromOrganization(
     type: "MEMBER_REMOVED",
     metadata: {
       userId: targetUserId,
+      ...(targetUser?.name !== undefined
+        ? { memberName: targetUser.name }
+        : {}),
     },
   });
 
@@ -334,12 +342,17 @@ export async function leaveOrganizationForUser(
 
   await deleteMembership(organizationId, userId);
 
+  const leaver = await findUserById(userId);
+
   await logActivity({
     organizationId,
     actorId: userId,
     type: "MEMBER_REMOVED",
     metadata: {
       userId,
+      ...(leaver?.name !== undefined
+        ? { memberName: leaver.name }
+        : {}),
       selfLeave: true,
     },
   });

@@ -94,7 +94,10 @@ describe("membership notifications", () => {
       expect.objectContaining({ userId: "newbie" }),
     );
     expect(logActivity).toHaveBeenCalledWith(
-      expect.objectContaining({ type: "MEMBER_ADDED" }),
+      expect.objectContaining({
+        type: "MEMBER_ADDED",
+        metadata: expect.objectContaining({ memberName: "New" }),
+      }),
     );
   });
 
@@ -124,7 +127,10 @@ describe("membership notifications", () => {
     expect(notifyOwnershipTransferred).not.toHaveBeenCalled();
     expect(emitMemberUpdated).toHaveBeenCalled();
     expect(logActivity).toHaveBeenCalledWith(
-      expect.objectContaining({ type: "MEMBER_ROLE_CHANGED" }),
+      expect.objectContaining({
+        type: "MEMBER_ROLE_CHANGED",
+        metadata: expect.objectContaining({ memberName: "T" }),
+      }),
     );
   });
 
@@ -150,7 +156,10 @@ describe("membership notifications", () => {
     );
     expect(notifyMemberRoleChanged).not.toHaveBeenCalled();
     expect(logActivity).toHaveBeenCalledWith(
-      expect.objectContaining({ type: "OWNERSHIP_TRANSFERRED" }),
+      expect.objectContaining({
+        type: "OWNERSHIP_TRANSFERRED",
+        metadata: expect.objectContaining({ memberName: "T" }),
+      }),
     );
   });
 });
