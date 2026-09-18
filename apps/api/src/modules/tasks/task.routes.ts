@@ -47,7 +47,7 @@ router.patch(
 router.delete(
   "/organizations/:organizationId/projects/:projectId/tasks/:taskId",
   requireOrganizationMember,
-  requireOrganizationRole("OWNER", "ADMIN"),
+  requireOrganizationRole("OWNER"),
   deleteTask,
 );
 

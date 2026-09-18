@@ -85,3 +85,11 @@ export async function deleteActivitiesByProject(
     projectId,
   }).exec();
 }
+
+export async function deleteActivitiesByOrganization(
+  organizationId: string,
+): Promise<void> {
+  await Activity.deleteMany({
+    organizationId,
+  }).exec();
+}

@@ -51,10 +51,13 @@ npm run build       # production builds for api + web
 | Method | Path | Scope |
 | --- | --- | --- |
 | GET | `/api/v1/organizations` | my orgs (via membership) |
+| DELETE | `/api/v1/organizations/:orgId` | owner only, cascades all org data |
 | GET | `/api/v1/projects` | my projects across orgs |
 | GET | `/api/v1/organizations/:orgId/projects` | org projects |
+| DELETE | `/api/v1/organizations/:orgId/projects/:projectId` | owner only, cascades tasks/comments/activity |
 | GET | `/api/v1/tasks` | tasks assigned to me (filterable) |
 | GET | `/api/v1/organizations/:orgId/projects/:projectId/tasks` | project tasks |
+| DELETE | `/api/v1/organizations/:orgId/projects/:projectId/tasks/:taskId` | owner only, cascades comments/activity |
 | GET/PATCH | `/api/v1/notifications`, `/notifications/:id/read`, `/notifications/read-all` | my notifications |
 
 Deleting a project cascades to its tasks, comments, and activity; deleting a task cascades to its comments and activity (a `TASK_DELETED` tombstone is kept).

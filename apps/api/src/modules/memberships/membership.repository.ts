@@ -63,3 +63,11 @@ export async function deleteMembership(
     userId,
   }).exec();
 }
+
+export async function deleteMembershipsByOrganization(
+  organizationId: string,
+): Promise<void> {
+  await Membership.deleteMany({
+    organizationId,
+  }).exec();
+}

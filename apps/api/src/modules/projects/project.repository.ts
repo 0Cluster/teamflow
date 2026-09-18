@@ -92,3 +92,11 @@ export async function deleteProject(
     organizationId,
   }).exec();
 }
+
+export async function deleteProjectsByOrganization(
+  organizationId: string,
+): Promise<void> {
+  await Project.deleteMany({
+    organizationId,
+  }).exec();
+}

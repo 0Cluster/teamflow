@@ -1,10 +1,18 @@
 import { AppError } from "../../common/errors/app-error.js";
 import {
   findMembershipsByUser,
+  findMembership,
   createMembership,
+  deleteMembershipsByOrganization,
 } from "../memberships/membership.repository.js";
+import { deleteActivitiesByOrganization } from "../activity/activity.repository.js";
+import { deleteCommentsByOrganization } from "../comments/comment.repository.js";
+import { deleteLabelsByOrganization } from "../labels/label.repository.js";
+import { deleteTasksByOrganization } from "../tasks/task.repository.js";
+import { deleteProjectsByOrganization } from "../projects/project.repository.js";
 import {
   createOrganization,
+  deleteOrganization,
   findOrganizationById,
   findOrganizationBySlug,
 } from "./organization.repository.js";
@@ -110,4 +118,49 @@ export async function getOrganizationById(
     createdAt: organization.createdAt,
     updatedAt: organization.updatedAt,
   };
+}
+
+export async function deleteOrganizationForUser(
+  organizationId: string,
+  userId: string,
+): Promise<void> {
+  const organization =
+    await findOrganizationById(organizationId);
+
+  if (!organization) {
+    throw new AppError(
+      404,
+      "ORGANIZATION_NOT_FOUND",
+      "Organization not found",
+    );
+  }
+
+  const membership = await findMembership(organizationId, userId);
+
+  if (!membership) {
+    throw new AppError(
+      403,
+      "ORGANIZATION_ACCESS_DENIED",
+      "You are not a member of this organization",
+    );
+  }
+
+  if (membership.role !== "OWNER") {
+    throw new AppError(
+      403,
+      "ORGANIZATION_PERMISSION_DENIED",
+      "Only the organization owner can delete this organization",
+    );
+  }
+
+  await Promise.all([
+    deleteCommentsByOrganization(organizationId),
+    deleteActivitiesByOrganization(organizationId),
+    deleteTasksByOrganization(organizationId),
+    deleteProjectsByOrganization(organizationId),
+    deleteLabelsByOrganization(organizationId),
+    deleteMembershipsByOrganization(organizationId),
+  ]);
+
+  await deleteOrganization(organizationId);
 }

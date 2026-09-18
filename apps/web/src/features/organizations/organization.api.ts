@@ -36,3 +36,13 @@ export async function createOrganization(
 
   return response.data.data.organization;
 }
+
+export async function deleteOrganization(
+  organizationId: string,
+): Promise<string> {
+  const response = await api.delete<ApiResponse<{ message: string }>>(
+    `/organizations/${organizationId}`,
+  );
+
+  return response.data.data.message;
+}

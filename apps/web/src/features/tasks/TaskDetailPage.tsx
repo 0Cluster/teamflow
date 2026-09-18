@@ -281,6 +281,12 @@ export function TaskDetailPage() {
             </button>
           </div>
         )}
+
+        {deleteMutation.isError && (
+          <p className="mt-3 text-sm text-red-400">
+            Only the organization owner can delete this task.
+          </p>
+        )}
       </div>
 
       {isEditing ? (

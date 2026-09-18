@@ -1,8 +1,9 @@
 import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 
-import { getOrganization } from "./organization.api.js";
+import { deleteOrganization, getOrganization } from "./organization.api.js";
+import { useAuth } from "../auth/use-auth.js";
 import {
   addMember,
   listMembers,
@@ -26,11 +27,14 @@ export function OrganizationDetailPage() {
   }>();
 
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [email, setEmail] = useState("");
   const [role, setRole] =
     useState<MembershipRole>("MEMBER");
   const [error, setError] = useState("");
+  const [deleteError, setDeleteError] = useState("");
 
   const organizationQuery = useQuery({
     queryKey: ["organizations", organizationId],
@@ -105,6 +109,41 @@ export function OrganizationDetailPage() {
       });
     },
   });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteOrganization(organizationId!),
+    onSuccess: async () => {
+      setDeleteError("");
+
+      await queryClient.invalidateQueries({
+        queryKey: ["organizations"],
+      });
+
+      await navigate("/organizations");
+    },
+    onError: () => {
+      setDeleteError(
+        "Only the organization owner can delete this organization.",
+      );
+    },
+  });
+
+  const myMembership = membersQuery.data?.find(
+    (member) => member.userId === user?.id,
+  );
+  const isOwner = myMembership?.role === "OWNER";
+
+  function handleDelete() {
+    if (
+      !window.confirm(
+        `Delete "${organizationQuery.data?.name}" and all its projects, tasks, and data? This cannot be undone.`,
+      )
+    ) {
+      return;
+    }
+
+    deleteMutation.mutate();
+  }
 
   function handleAddMember(
     event: FormEvent<HTMLFormElement>,
@@ -339,6 +378,37 @@ if (!organization) {
           </form>
         </section>
       </div>
+
+      {isOwner && (
+        <section className="mt-6 rounded-xl border border-red-900 bg-slate-900 p-6">
+          <h2 className="text-lg font-semibold text-white">
+            Danger zone
+          </h2>
+
+          <p className="mt-1 text-sm text-slate-500">
+            Deleting this organization permanently removes its
+            projects, tasks, labels, members, and history. Only
+            the owner can do this.
+          </p>
+
+          {deleteError && (
+            <p className="mt-3 text-sm text-red-400">
+              {deleteError}
+            </p>
+          )}
+
+          <button
+            type="button"
+            disabled={deleteMutation.isPending}
+            onClick={handleDelete}
+            className="mt-4 rounded-lg border border-red-900 px-4 py-2.5 text-sm font-semibold text-red-400 transition hover:bg-red-950/40 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {deleteMutation.isPending
+              ? "Deleting..."
+              : "Delete organization"}
+          </button>
+        </section>
+      )}
     </div>
   );
 }

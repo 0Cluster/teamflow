@@ -77,3 +77,11 @@ export async function deleteLabel(
     organizationId,
   }).exec();
 }
+
+export async function deleteLabelsByOrganization(
+  organizationId: string,
+): Promise<void> {
+  await Label.deleteMany({
+    organizationId,
+  }).exec();
+}

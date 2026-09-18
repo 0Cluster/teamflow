@@ -101,3 +101,11 @@ export async function deleteCommentsByProject(
     projectId,
   }).exec();
 }
+
+export async function deleteCommentsByOrganization(
+  organizationId: string,
+): Promise<void> {
+  await Comment.deleteMany({
+    organizationId,
+  }).exec();
+}

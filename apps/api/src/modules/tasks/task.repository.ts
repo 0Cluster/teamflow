@@ -171,6 +171,14 @@ export async function deleteTasksByProject(
   }).exec();
 }
 
+export async function deleteTasksByOrganization(
+  organizationId: string,
+): Promise<void> {
+  await Task.deleteMany({
+    organizationId,
+  }).exec();
+}
+
 export async function addLabelToTask(
   organizationId: string,
   projectId: string,

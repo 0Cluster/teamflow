@@ -1,7 +1,14 @@
-import { useQuery } from "@tanstack/react-query";
-import { Link, useParams } from "react-router-dom";
+import { useState } from "react";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import { Link, useNavigate, useParams } from "react-router-dom";
 
-import { getProject } from "./project.api.js";
+import { deleteProject, getProject } from "./project.api.js";
+import { listMembers } from "../organizations/membership.api.js";
+import { useAuth } from "../auth/use-auth.js";
 
 export function ProjectDetailPage() {
   const { organizationId, projectId } = useParams<{
@@ -9,12 +16,60 @@ export function ProjectDetailPage() {
     projectId: string;
   }>();
 
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const [deleteError, setDeleteError] = useState("");
+
   const projectQuery = useQuery({
     queryKey: ["project", organizationId, projectId],
     queryFn: () =>
       getProject(organizationId!, projectId!),
     enabled: Boolean(organizationId && projectId),
   });
+
+  const membersQuery = useQuery({
+    queryKey: ["organization-members", organizationId],
+    queryFn: () => listMembers(organizationId!),
+    enabled: Boolean(organizationId),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteProject(organizationId!, projectId!),
+    onSuccess: async () => {
+      setDeleteError("");
+
+      await queryClient.invalidateQueries({
+        queryKey: ["organization-projects", organizationId],
+      });
+
+      await queryClient.invalidateQueries({
+        queryKey: ["my-projects"],
+      });
+
+      await navigate(`/organizations/${organizationId}/projects`);
+    },
+    onError: () => {
+      setDeleteError("Only the organization owner can delete this project.");
+    },
+  });
+
+  const isOwner =
+    membersQuery.data?.some(
+      (member) => member.userId === user?.id && member.role === "OWNER",
+    ) ?? false;
+
+  function handleDelete() {
+    if (
+      !window.confirm(
+        `Delete "${projectQuery.data?.name}" and all its tasks? This cannot be undone.`,
+      )
+    ) {
+      return;
+    }
+
+    deleteMutation.mutate();
+  }
 
   if (!organizationId || !projectId) {
     return <div>Project not found.</div>;
@@ -70,7 +125,24 @@ export function ProjectDetailPage() {
               {project.description ||
                 "No description provided."}
             </p>
+
+            {deleteError && (
+              <p className="mt-3 text-sm text-red-400">
+                {deleteError}
+              </p>
+            )}
           </div>
+
+          {isOwner && (
+            <button
+              type="button"
+              disabled={deleteMutation.isPending}
+              onClick={handleDelete}
+              className="shrink-0 rounded-lg border border-red-900 px-4 py-2 text-sm font-semibold text-red-400 transition hover:bg-red-950/40 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {deleteMutation.isPending ? "Deleting..." : "Delete project"}
+            </button>
+          )}
         </div>
       </div>
 

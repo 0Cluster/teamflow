@@ -5,6 +5,7 @@ import { createOrganizationSchema } from "./organization.schema.js";
 import {
   createOrganizationForUser,
   getOrganizationsForUser,
+  deleteOrganizationForUser,
 } from "./organization.service.js";
 import { getOrganizationById } from "./organization.service.js";
 export async function createOrganization(
@@ -85,6 +86,34 @@ const organization =
     success: true,
     data: {
       organization,
+    },
+  });
+}
+
+export async function deleteOrganization(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  if (!req.user) {
+    throw new AppError(401, "UNAUTHORIZED", "Authentication required");
+  }
+
+  const organizationId = req.params.organizationId;
+
+  if (typeof organizationId !== "string") {
+    throw new AppError(
+      400,
+      "INVALID_ORGANIZATION_ID",
+      "Organization ID must be a string",
+    );
+  }
+
+  await deleteOrganizationForUser(organizationId, req.user.id);
+
+  res.status(200).json({
+    success: true,
+    data: {
+      message: "Organization deleted successfully",
     },
   });
 }

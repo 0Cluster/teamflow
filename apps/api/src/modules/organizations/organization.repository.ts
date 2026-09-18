@@ -43,3 +43,11 @@ export async function updateOrganizationOwner(
     },
   ).exec();
 }
+
+export async function deleteOrganization(
+  organizationId: string,
+): Promise<void> {
+  await Organization.deleteOne({
+    _id: organizationId,
+  }).exec();
+}

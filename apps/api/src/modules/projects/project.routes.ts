@@ -49,7 +49,7 @@ router.patch(
 router.delete(
   "/organizations/:organizationId/projects/:projectId",
   requireOrganizationMember,
-  requireOrganizationRole("OWNER", "ADMIN"),
+  requireOrganizationRole("OWNER"),
   deleteProject,
 );
 
