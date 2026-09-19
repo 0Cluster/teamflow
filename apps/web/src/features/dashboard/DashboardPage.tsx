@@ -67,24 +67,28 @@ export function DashboardPage() {
         ) : (
           <>
             <DashboardCard
+              to="/organizations"
               title="Organizations"
               value={formatCount(organizationsQuery.data?.length)}
               description="Your organizations"
             />
 
             <DashboardCard
+              to="/projects"
               title="Projects"
               value={formatCount(projectsQuery.data?.length)}
               description="Active projects"
             />
 
             <DashboardCard
+              to="/tasks"
               title="Tasks"
               value={formatCount(tasksQuery.data?.pagination.total)}
               description="Assigned to you"
             />
 
             <DashboardCard
+              to="/notifications"
               title="Notifications"
               value={formatCount(notificationsQuery.data?.unreadCount)}
               description="Unread notifications"
@@ -146,7 +150,9 @@ export function DashboardPage() {
         </div>
 
         <div className="h-fit rounded-xl border border-slate-800 bg-slate-900 p-6">
-          <h2 className="text-lg font-semibold text-white">Quick links</h2>
+          <h2 className="text-lg font-semibold text-white">
+            Quick links
+          </h2>
 
           <div className="mt-4 flex flex-col gap-2">
             <Link
@@ -177,23 +183,28 @@ export function DashboardPage() {
 }
 
 interface DashboardCardProps {
+  to: string;
   title: string;
   value: string;
   description: string;
 }
 
 function DashboardCard({
+  to,
   title,
   value,
   description,
 }: DashboardCardProps) {
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900 p-5">
+    <Link
+      to={to}
+      className="block rounded-xl border border-slate-800 bg-slate-900 p-5 transition hover:border-slate-700 hover:bg-slate-800/80 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+    >
       <p className="text-sm text-slate-400">{title}</p>
 
       <p className="mt-2 text-3xl font-bold text-white">{value}</p>
 
       <p className="mt-1 text-xs text-slate-500">{description}</p>
-    </div>
+    </Link>
   );
 }
